@@ -98,16 +98,16 @@ package sauria_pkg;
     parameter DMA_MAX_OUTSTANDING_READS     = 8;        // Max concurrent reads
     parameter DMA_MAX_OUTSTANDING_WRITES    = 8;        // Max concurrent writes
 
-    // SAURIA Configuration register parameters ('Real' in order to properly apply the ceiling function)
-    parameter real TOTAL_BITS_CON =         ACT_IDX_W + 2*OUT_IDX_W + TH_W + 2;
-    parameter real TOTAL_BITS_ACT =         Y + DILP_W + 10*ACT_IDX_W + Y*PARAMS_W;
-    parameter real TOTAL_BITS_WEI =         X + 6*WEI_IDX_W + 1;
-    parameter real TOTAL_BITS_OUT =         1 + PARAMS_W + 9*OUT_IDX_W;
+    // SAURIA configuration register bit counts.
+    parameter int TOTAL_BITS_CON = ACT_IDX_W + 2*OUT_IDX_W + TH_W + 2;
+    parameter int TOTAL_BITS_ACT = Y + DILP_W + 10*ACT_IDX_W + Y*PARAMS_W;
+    parameter int TOTAL_BITS_WEI = X + 6*WEI_IDX_W + 1;
+    parameter int TOTAL_BITS_OUT = 1 + PARAMS_W + 9*OUT_IDX_W;
 
-    // Register count
-    localparam int TOTAL_REGS_CON = $ceil(sauria_pkg::TOTAL_BITS_CON/32);
-    localparam int TOTAL_REGS_ACT = $ceil(sauria_pkg::TOTAL_BITS_ACT/32);
-    localparam int TOTAL_REGS_WEI = $ceil(sauria_pkg::TOTAL_BITS_WEI/32);
-    localparam int TOTAL_REGS_OUT = $ceil(sauria_pkg::TOTAL_BITS_OUT/32);
+    // Round positive bit counts up to whole 32-bit configuration registers.
+    localparam int TOTAL_REGS_CON = (sauria_pkg::TOTAL_BITS_CON + 31) / 32;
+    localparam int TOTAL_REGS_ACT = (sauria_pkg::TOTAL_BITS_ACT + 31) / 32;
+    localparam int TOTAL_REGS_WEI = (sauria_pkg::TOTAL_BITS_WEI + 31) / 32;
+    localparam int TOTAL_REGS_OUT = (sauria_pkg::TOTAL_BITS_OUT + 31) / 32;
 
 endpackage

@@ -72,10 +72,10 @@ module ram_intf_wrapper #(
 
 localparam int ACTUAL_SRAM_W = `max2(IF_W, SRAM_W);
 
-localparam int HOST_N = $ceil(ACTUAL_SRAM_W/IF_W);
+localparam int HOST_N = (ACTUAL_SRAM_W + IF_W - 1) / IF_W;
 localparam int HOST_N_BITS = $clog2(HOST_N);
 
-localparam int ACCEL_N = $ceil(ACTUAL_SRAM_W/SRAM_W);
+localparam int ACCEL_N = (ACTUAL_SRAM_W + SRAM_W - 1) / SRAM_W;
 localparam int ACCEL_N_BITS = $clog2(ACCEL_N);
 localparam int ACCEL_WMASK_W = SRAM_W/SRAM_N;
 
