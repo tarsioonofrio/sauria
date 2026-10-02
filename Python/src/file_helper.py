@@ -87,14 +87,25 @@ def generate_test_files(DRAM_mem, DRAM_mem_gold, controller_regs, testcfg_list, 
 def parse_test_outputs(HOPTS, tensor_size, test_dir="../../test"):
 
    # Read tensor outputs
-    raw_outputs = np.loadtxt(os.path.join(test_dir, "outputs/test_results.txt"), dtype=str)
+    raw_outputs = np.atleast_1d(np.loadtxt(os.path.join(test_dir, "outputs/test_results.txt"), dtype=str))
+
+    # Verilator may omit the initial address marker when $writememh writes a
+    # contiguous range. Only discard a token when it is actually an address.
+    if raw_outputs.size > 0 and raw_outputs[0].startswith('@'):
+        raw_outputs = raw_outputs[1:]
 
     # Transform strings into 8b integer values
-    out_bytes = np.array([int(x,16) for x in raw_outputs[1:]])
+    out_bytes = np.array([int(x,16) for x in raw_outputs])
 
     # Cap data to total tensor size (usually there is some padding)
     N_bytes = int(np.ceil(HOPTS['OC_W']/8))
-    out_bytes = out_bytes[:tensor_size*N_bytes]
+    expected_bytes = tensor_size*N_bytes
+    if out_bytes.size < expected_bytes:
+        raise ValueError(
+            f"test_results.txt contains {out_bytes.size} output bytes; "
+            f"expected at least {expected_bytes} for {tensor_size} values"
+        )
+    out_bytes = out_bytes[:expected_bytes]
 
     # Join bytes into words (values) - WARNING - We assume words are multiples of 8b!!!!
     out_values = np.zeros(int(out_bytes.size//N_bytes),dtype=np.int64)
