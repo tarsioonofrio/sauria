@@ -88,7 +88,7 @@ module tb;
         begin
             for (part = 0; part < 2; part = part + 1) begin
                 @(negedge clk);
-                mem_addr = base | ((word_index*2 + part) << 3);
+                mem_addr = base | ((word_index*2 + part) << 4);
                 mem_data = '0;
                 if (part == 0) mem_data = value[99:0];
                 else            mem_data = value[119:100];
@@ -112,7 +112,7 @@ module tb;
             high_part = '0;
             for (part = 0; part < 2; part = part + 1) begin
                 @(negedge clk);
-                mem_addr = base | ((word_index*2 + part) << 3);
+                mem_addr = base | ((word_index*2 + part) << 4);
                 mem_rden = 1'b1;
                 @(negedge clk);
                 // SRAM output and sram_top's host output are both registered.

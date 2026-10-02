@@ -9,11 +9,11 @@ Derived from the FastConv TSMC 28 nm Genus flow at
 - Target clock: 500 MHz (2 ns); TSMC28 MMMC/PVT inputs copied from FastConv.
 - External input budget and port: 100 bits/cycle total, shared by IFMAP and
   weights. Outputs reuse the same host port. The 120-bit local SRAM word is
-  transferred as 100 bits
-  plus a 20-bit tail; `ram_intf_wrapper` handles the partial final chunk. The
-  host transfer address advances in 8-byte encoded units because `sram_top`
-  strips three low address bits. The testbench checks this packing by loading
-  and reading the same 120-bit words over the shared port.
+  transferred as 100 bits plus a 20-bit tail; `ram_intf_wrapper` handles the
+  partial final chunk. `sram_top` aligns host addresses to 16-byte encoded
+  units for a 100-bit port, and removes the global SRAM selector before passing
+  the local address to each adapter. The testbench checks this packing by
+  loading and reading the same 120-bit words over the shared port.
 - The C=16 vectors are signed, Q8-scaled integers represented in 20-bit words.
   They are not clamped to signed int8; the dataset README records this limit.
 - `multiplier_ideal` treats both operands as signed 20-bit values and produces a 40-bit product.

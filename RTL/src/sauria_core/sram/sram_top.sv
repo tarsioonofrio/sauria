@@ -83,6 +83,15 @@ module sram_top #(
 );
 
 localparam IF_LSB_BITS = $clog2(IF_W/8);
+localparam HOST_ADR_W = IF_ADR_W - IF_LSB_BITS;
+
+// The host address carries both the global SRAM selection and the local
+// offset. Strip the selection bits before handing the address to the SRAM
+// adapters; otherwise non-power-of-two host widths can shift those global
+// bits into the physical SRAM address when the adapter adds a chunk selector.
+logic [HOST_ADR_W-1:0] host_local_address;
+assign host_local_address = i_address[IF_ADR_W-1:IF_LSB_BITS] &
+                            ~(sauria_addr_pkg::SAURIA_MEM_ADDR_MASK >> IF_LSB_BITS);
 
 // ----------
 // SIGNALS
@@ -214,7 +223,7 @@ ram_intf_wrapper #(
         .i_select       (i_select[0]),
         .i_data         (i_data),
         .i_wmask        (i_wmask),
-        .i_address      (i_address[IF_ADR_W-1:IF_LSB_BITS]),
+        .i_address      (host_local_address),
         .i_wren         (host_srama_wren),
         .i_rden         (host_srama_rden),
         .o_data_out     (host_srama_data),
@@ -242,7 +251,7 @@ ram_intf_wrapper #(
         .i_select       (i_select[1]),
         .i_data         (i_data),
         .i_wmask        (i_wmask),
-        .i_address      (i_address[IF_ADR_W-1:IF_LSB_BITS]),
+        .i_address      (host_local_address),
         .i_wren         (host_sramb_wren),
         .i_rden         (host_sramb_rden),
         .o_data_out     (host_sramb_data),
@@ -271,7 +280,7 @@ ram_intf_wrapper #(
         .i_select       (i_select[2]),
         .i_data         (i_data),
         .i_wmask        (i_wmask),
-        .i_address      (i_address[IF_ADR_W-1:IF_LSB_BITS]),
+        .i_address      (host_local_address),
         .i_wren         (host_sramc_wren),
         .i_rden         (host_sramc_rden),
         .o_data_out     (host_sramc_data),
