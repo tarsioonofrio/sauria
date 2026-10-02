@@ -57,6 +57,7 @@ pulp_platform/common_cells/src/rstgen.sv
 pulp_platform/common_cells/src/unread.sv
 pulp_platform/common_cells/src/shift_reg.sv
 pulp_platform/common_cells/src/cdc_fifo_2phase.sv
+pulp_platform/axi/src/axi_pkg.sv
 pulp_platform/axi/src/axi_serializer.sv
 pulp_platform/axi/src/axi_err_slv.sv
 pulp_platform/axi/src/axi_demux.sv
