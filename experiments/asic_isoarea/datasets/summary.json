@@ -1,0 +1,49 @@
+{
+  "datasets": [
+    {
+      "Cin": 1,
+      "Cout": 1,
+      "input_side": 34,
+      "output_side": 32,
+      "kernel": "3x3",
+      "stride": 1,
+      "padding": 0,
+      "quantization_bits": 8,
+      "word_bits": 20,
+      "truncated_weight_transform": true,
+      "seed": 0,
+      "dataset": "experiments/asic_isoarea/datasets/c1/sim/sim-out32-k3-s1-p0-trunc-n20-q8-seed0",
+      "sauria_golden_sha256": "0c5e8c08132e353d2c06dc220a2ad30faf683a476782f71aa71f6cfc544202ab"
+    },
+    {
+      "Cin": 4,
+      "Cout": 4,
+      "input_side": 34,
+      "output_side": 32,
+      "kernel": "3x3",
+      "stride": 1,
+      "padding": 0,
+      "quantization_bits": 8,
+      "word_bits": 20,
+      "truncated_weight_transform": true,
+      "seed": 0,
+      "dataset": "experiments/asic_isoarea/datasets/c4/sim/sim-out32-k3-s1-p0-trunc-n20-q8-seed0",
+      "sauria_golden_sha256": "7b7c4749d3ae9af2d3925e2cdff56490213395b9ac4a304a3541fe4f4d7c28e9"
+    },
+    {
+      "Cin": 16,
+      "Cout": 16,
+      "input_side": 34,
+      "output_side": 32,
+      "kernel": "3x3",
+      "stride": 1,
+      "padding": 0,
+      "quantization_bits": 8,
+      "word_bits": 20,
+      "truncated_weight_transform": true,
+      "seed": 0,
+      "dataset": "experiments/asic_isoarea/datasets/c16/sim/sim-out32-k3-s1-p0-trunc-n20-q8-seed0",
+      "sauria_golden_sha256": "5a8e5b05b173f77a90e894162727b6623f8831c243db47ba401b17e392b957aa"
+    }
+  ]
+}
