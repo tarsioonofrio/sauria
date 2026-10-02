@@ -46,6 +46,23 @@ module tb;
 
     always #1ns clk = ~clk;
 
+    // Trace the first output-SRAM commits to verify the PSM's lane mapping on
+    // the non-power-of-two 6x6 configuration.
+    always @(posedge clk) begin
+        if (rstn && dut.sauria_logic_i.o_sramc_wren &&
+            (dut.sauria_logic_i.o_sramc_addr < 12)) begin
+            $display("PSM_WRITE addr=%0d mask=%b rows_active=%b cols_active=%b array=%030x fifo=%030x mask_q=%b wdata=%030x",
+                dut.sauria_logic_i.o_sramc_addr,
+                dut.sauria_logic_i.o_sramc_wmask,
+                dut.sauria_logic_i.af_rows_active,
+                dut.sauria_logic_i.wf_cols_active,
+                dut.sauria_logic_i.ob_c_arr,
+                dut.sauria_logic_i.psm_top_i.buff_dout,
+                dut.sauria_logic_i.psm_top_i.mask,
+                dut.sauria_logic_i.o_sramc_wdata);
+        end
+    end
+
     sauria_asic_top #(
         .CFG_W(CFG_W), .CFG_ADDR_W(32), .MEM_W(MEM_W), .MEM_ADDR_W(32)
     ) dut (
@@ -170,6 +187,15 @@ module tb;
 
         for (idx = 0; idx < CFG_WORDS; idx = idx + 1)
             write_cfg(config_words[idx][63:32], config_words[idx][31:0]);
+
+        $display("CONFIG_ACTIVE rows=%b cols=%b cxlim=%0d cxstep=%0d ck_lim=%0d ckstep=%0d ncontexts=%0d",
+            dut.sauria_logic_i.af_rows_active,
+            dut.sauria_logic_i.wf_cols_active,
+            dut.sauria_logic_i.ob_cxlim,
+            dut.sauria_logic_i.ob_cxstep,
+            dut.sauria_logic_i.ob_cklim,
+            dut.sauria_logic_i.ob_ckstep,
+            dut.sauria_logic_i.ob_ncontexts);
 
         // The top-level done interrupt is gated by both interrupt enables.
         write_cfg(32'h5000_0004, 32'h0000_0001);
