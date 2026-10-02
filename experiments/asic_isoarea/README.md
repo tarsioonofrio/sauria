@@ -7,11 +7,13 @@ Each directory contains `list-file.txt`, `list-define.txt`, `list-incdir.txt`,
 scripts, MMMC setup, and 500 MHz SDC.
 
 The experimental `common/sauria_asic_top.sv` includes SAURIA's `sauria_logic`
-and local SRAMs but excludes the subsystem DMA, CPU, and AXI fabrics. Its memory
-host port matches the local SRAM word width (`20*X` bits) for each square array
-point. The 100/120-bit-per-cycle total input budgets are traffic constraints
-for the shared activation/weight stream; the layer-level functional harness
-must enforce them before they can be called verified.
+and local SRAMs but excludes the subsystem DMA, CPU, and AXI fabrics. Its single
+host port is shared by SRAMA, SRAMB, and SRAMC. The port uses the external budget
+(100 bits for w5, 120 bits for w6), capped at the widest local SRAM word; for
+4x4 this means an 80-bit port, below either budget. When the external port is
+narrower than a local SRAM word, SAURIA's existing host-side adapter uses
+multiple transfers per SRAM word. The layer-level functional harness must
+verify transfer counts and the cap before bandwidth compliance can be claimed.
 
 The functional RTL memory is inferred from registers, but the Genus `list-file.txt`
 uses the synthesis-only abstract module
