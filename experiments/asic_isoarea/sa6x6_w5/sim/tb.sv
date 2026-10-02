@@ -219,8 +219,11 @@ module tb;
         repeat (5) @(posedge clk);
         errors = 0;
         checksum = 64'hcbf29ce484222325;
+        fd = $fopen("run_artifacts/rtl-ac1d170-output-readback.mem", "w");
+        if (fd == 0) $fatal(1, "cannot create output readback dump");
         for (idx = 0; idx < OUTPUT_WORDS; idx = idx + 1) begin
             read_sram_word(32'h000C_0000, idx, read_word);
+            $fdisplay(fd, "%030x", read_word);
             for (integer lane = 0; lane < LANES; lane = lane + 1) begin
                 integer out_idx;
                 out_idx = idx*LANES + lane;
@@ -236,6 +239,7 @@ module tb;
                 end
             end
         end
+        $fclose(fd);
         if (errors != 0) $fatal(1, "direct-convolution golden mismatch: %0d outputs", errors);
         $display("OUTPUTS_CHECKED=%0d", OUTPUT_VALUES);
         $display("OUTPUT_FNV1A64=%016x", checksum);
