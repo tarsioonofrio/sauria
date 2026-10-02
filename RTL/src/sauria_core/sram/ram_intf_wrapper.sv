@@ -74,6 +74,8 @@ localparam int ACTUAL_SRAM_W = `max2(IF_W, SRAM_W);
 
 localparam int HOST_N = (ACTUAL_SRAM_W + IF_W - 1) / IF_W;
 localparam int HOST_N_BITS = $clog2(HOST_N);
+localparam bit HOST_REPACK_PARTIAL_BYTE =
+    (SRAM_W > IF_W) && (IF_W % 8 != 0) && (HOST_N == 2);
 
 localparam int ACCEL_N = (ACTUAL_SRAM_W + SRAM_W - 1) / SRAM_W;
 localparam int ACCEL_N_BITS = $clog2(ACCEL_N);
@@ -110,6 +112,10 @@ logic [ACTUAL_SRAM_W-1:0]       wmask_0, wmask_1;
 logic [ACTUAL_SRAM_W-1:0]       outdata_0, outdata_1;
 logic                           rden_0, rden_1, wren_0, wren_1;
 logic                           cen_0, cen_1, rdwen_0, rdwen_1;
+logic [IF_W-1:0]                host_low_data_0_q, host_low_data_1_q;
+logic [IF_W-1:0]                host_low_wmask_0_q, host_low_wmask_1_q;
+logic [ACTUAL_ADR_W-1:0]        host_low_addr_0_q, host_low_addr_1_q;
+logic                           host_low_valid_0_q, host_low_valid_1_q;
 
 // Output data bus selection
 logic [ACTUAL_SRAM_W-1:0]       host_outdata, accel_outdata;
@@ -243,17 +249,75 @@ endgenerate
 // Input signals multiplexing
 // ------------------------------------------------------------
 
-assign addr_0 =     (i_select)?  accel_phys_addr : host_phys_addr;
-assign indata_0 =   (i_select)?  accel_phys_data : host_phys_data;
-assign wmask_0 =    (i_select)?  accel_phys_wmask : host_phys_wmask;
 assign rden_0 =     (i_select)?  i_sram_rden : i_rden;
-assign wren_0 =     (i_select)?  i_sram_wren : i_wren;
-
-assign addr_1 =     (!i_select)?  accel_phys_addr : host_phys_addr;
-assign indata_1 =   (!i_select)?  accel_phys_data : host_phys_data;
-assign wmask_1 =    (!i_select)?  accel_phys_wmask : host_phys_wmask;
 assign rden_1 =     (!i_select)?  i_sram_rden : i_rden;
-assign wren_1 =     (!i_select)?  i_sram_wren : i_wren;
+
+generate
+    if (HOST_REPACK_PARTIAL_BYTE) begin : host_partial_byte_repack
+        always_ff @(posedge i_clk or negedge i_rstn) begin
+            if (!i_rstn) begin
+                host_low_valid_0_q <= 1'b0;
+                host_low_valid_1_q <= 1'b0;
+                host_low_data_0_q <= '0;
+                host_low_data_1_q <= '0;
+                host_low_wmask_0_q <= '0;
+                host_low_wmask_1_q <= '0;
+                host_low_addr_0_q <= '0;
+                host_low_addr_1_q <= '0;
+            end else begin
+                if (i_wren && !i_select) begin
+                    if (host_word_sel == 0) begin
+                        host_low_data_0_q <= host_phys_data[IF_W-1:0];
+                        host_low_wmask_0_q <= host_phys_wmask[IF_W-1:0];
+                        host_low_addr_0_q <= host_phys_addr;
+                        host_low_valid_0_q <= 1'b1;
+                    end else if (host_word_sel == 1) begin
+                        host_low_valid_0_q <= 1'b0;
+                    end
+                end
+
+                if (i_wren && i_select) begin
+                    if (host_word_sel == 0) begin
+                        host_low_data_1_q <= host_phys_data[IF_W-1:0];
+                        host_low_wmask_1_q <= host_phys_wmask[IF_W-1:0];
+                        host_low_addr_1_q <= host_phys_addr;
+                        host_low_valid_1_q <= 1'b1;
+                    end else if (host_word_sel == 1) begin
+                        host_low_valid_1_q <= 1'b0;
+                    end
+                end
+            end
+        end
+
+        assign addr_0 = (i_select) ? accel_phys_addr : host_phys_addr;
+        assign indata_0 = (i_select) ? accel_phys_data :
+            {host_phys_data[ACTUAL_SRAM_W-1:IF_W], host_low_data_0_q};
+        assign wmask_0 = (i_select) ? accel_phys_wmask :
+            {host_phys_wmask[ACTUAL_SRAM_W-1:IF_W], host_low_wmask_0_q};
+        assign wren_0 = (i_select) ? i_sram_wren :
+            (i_wren && (host_word_sel == 1) && host_low_valid_0_q &&
+             (host_low_addr_0_q == host_phys_addr));
+
+        assign addr_1 = (!i_select) ? accel_phys_addr : host_phys_addr;
+        assign indata_1 = (!i_select) ? accel_phys_data :
+            {host_phys_data[ACTUAL_SRAM_W-1:IF_W], host_low_data_1_q};
+        assign wmask_1 = (!i_select) ? accel_phys_wmask :
+            {host_phys_wmask[ACTUAL_SRAM_W-1:IF_W], host_low_wmask_1_q};
+        assign wren_1 = (!i_select) ? i_sram_wren :
+            (i_wren && (host_word_sel == 1) && host_low_valid_1_q &&
+             (host_low_addr_1_q == host_phys_addr));
+    end else begin : host_direct_mapping
+        assign addr_0 = (i_select) ? accel_phys_addr : host_phys_addr;
+        assign indata_0 = (i_select) ? accel_phys_data : host_phys_data;
+        assign wmask_0 = (i_select) ? accel_phys_wmask : host_phys_wmask;
+        assign wren_0 = (i_select) ? i_sram_wren : i_wren;
+
+        assign addr_1 = (!i_select) ? accel_phys_addr : host_phys_addr;
+        assign indata_1 = (!i_select) ? accel_phys_data : host_phys_data;
+        assign wmask_1 = (!i_select) ? accel_phys_wmask : host_phys_wmask;
+        assign wren_1 = (!i_select) ? i_sram_wren : i_wren;
+    end
+endgenerate
 
 // ------------------------------------------------------------
 // Output signals multiplexing
