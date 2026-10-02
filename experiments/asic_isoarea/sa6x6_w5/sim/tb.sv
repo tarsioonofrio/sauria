@@ -115,8 +115,9 @@ module tb;
                 mem_addr = base | ((word_index*2 + part) << 3);
                 mem_rden = 1'b1;
                 @(negedge clk);
-                mem_rden = 1'b0;
+                // SRAM output and sram_top's host output are both registered.
                 @(negedge clk);
+                mem_rden = 1'b0;
                 if (part == 0) low_part = mem_rdata;
                 else            high_part = mem_rdata;
             end
