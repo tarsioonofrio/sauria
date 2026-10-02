@@ -27,9 +27,13 @@ simulation or bandwidth compliance can be claimed.
 `generate_datasets.py` calls the CLI in `fast-convolution-rtl` and stores
 reusable layer vectors under `datasets/c{C}/sim/`. It copies the WPN16
 configuration from `FastConv_SystemVerilog/rtl/conv4x4/data/wpn16/config`, then
-runs the library with `--truncated-weight-transform --nbits 20` for channels
-1, 4, 16, and 64. The 34x34 input produces the required 32x32 output for valid
-3x3, stride-1 convolution with no padding. Seed 0 is used for each case.
+runs the library with `--truncated-weight-transform --nbits 20`. The checked-in
+snapshot currently contains channels 1, 4, and 16; channel 64 is supported by
+the generator but was not completed because generation exceeded the available
+run window. The 34x34 input produces the required 32x32 output for valid 3x3,
+stride-1 convolution with no padding. Seed 0 is used for each case. Generate
+only the missing larger case with
+`python3 experiments/asic_isoarea/generate_datasets.py --channels 64`.
 
 Each generated package carries the same quantized feature and original spatial
 weight inputs for both architectures. `d.txt` contains features, `g.txt`
@@ -58,7 +62,12 @@ python3 experiments/asic_isoarea/generate_datasets.py
 
 Data generation alone does not validate SAURIA RTL compatibility. In
 particular, the FastConv CLI's truncation flag models its weight-transform
-truncation. The SAURIA testbench still needs a layer-level direct-convolution
+truncation. The 6x6 configuration is present in both the RTL defines and Python
+test configuration; its parameter lookup reports X=Y=6 and 20-bit exact
+integer arithmetic. Functional simulation did not complete: the existing
+Verilator 5.050 test harness rejects the AXI test memory's dynamically indexed
+nonblocking write, and the installed ModelSim command exited without
+compiling. The SAURIA testbench still needs a layer-level direct-convolution
 golden check against RTL. The generated Q8-scaled values are the representation
 used by the existing FastConv WPN16 dataset; their range is wider than signed
 int8, so the data still needs to be reconciled with the experiment's stated

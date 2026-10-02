@@ -184,6 +184,42 @@ def get_params(version):
         HOPTS["add_type"] =            0
         HOPTS["A"] =                   0
 
+    elif version=="asic_int20_6x6":
+
+        # SAURIA ASIC functional configuration used to check non-power-of-two
+        # array dimensions with the same 20-bit integer datapath as synthesis.
+        HOPTS["MEMA_DEPTH"] =          16384
+        HOPTS["MEMB_DEPTH"] =          8192
+        HOPTS["MEMC_DEPTH"] =          16384
+
+        HOPTS["DATA_AXI_DATA_WIDTH"] = 128
+        HOPTS["DATA_AXI_ADDR_WIDTH"] = 32
+
+        HOPTS["X"] =                   6
+        HOPTS["Y"] =                   6
+        HOPTS["DILP_W"] =              64
+        HOPTS["PARAMS_W"] =            8
+        HOPTS["TH_W"] =                2
+        HOPTS["IFM_FIFO_POSITIONS"] =  5
+        HOPTS["WEI_FIFO_POSITIONS"] =  4
+        HOPTS["FIFO_FILL_CYCLES"] =    1
+
+        HOPTS["IA_W"] =                20
+        HOPTS["IB_W"] =                20
+        HOPTS["OC_W"] =                20
+        HOPTS["OP_TYPE"] =             0
+
+        HOPTS["IA_MANT"] =             0
+        HOPTS["IB_MANT"] =             0
+        HOPTS["IC_MANT"] =             0
+        HOPTS["rounding"] =            "RNE"
+
+        HOPTS["approx_comp"] =         False
+        HOPTS["mul_type"] =            0
+        HOPTS["M"] =                   0
+        HOPTS["add_type"] =            0
+        HOPTS["A"] =                   0
+
     # Dependent parameters
     HOPTS["MEMA_W"] = HOPTS["Y"]*HOPTS["IA_W"]
     HOPTS["MEMB_W"] = HOPTS["X"]*HOPTS["IB_W"]

@@ -162,9 +162,9 @@ def get_conv_dict(tensor_shapes, TILING_DICT, HOPTS, preloads=0, d=1, s=1, p=0):
     
     # Row & column masks generation
     rows_active_str = '0b'
-    rows_active_arr = np.zeros(HOPTS['Y'], dtype=np.bool)
+    rows_active_arr = np.zeros(HOPTS['Y'], dtype=np.bool_)
     cols_active_str = '0b'
-    cols_active_arr = np.zeros(HOPTS['X'], dtype=np.bool)
+    cols_active_arr = np.zeros(HOPTS['X'], dtype=np.bool_)
     
     for j in range(HOPTS['Y']):
         if (j<Y_used):
@@ -360,4 +360,3 @@ def generate_and_run_test(tensor_shapes, tiling_dict, d, s, HOPTS, preload=True,
     SAURIA_outputs, SAURIA_stats = Conv2d_SAURIA(A_tensor, B_tensor, C_preload, C_golden, CONV_DICT, HOPTS, generate_vcd=generate_vcd, assert_no_errors=assert_no_errors, print_statistics=print_statistics, test_dir=test_dir, silent=silent)
            
     return SAURIA_outputs, SAURIA_stats, partial_macs
-
