@@ -133,25 +133,16 @@ generate
         assign host_phys_addr =    i_address[HOST_N_BITS+ACTUAL_ADR_W-1:HOST_N_BITS];
 
         for (i=0; i<HOST_N; i++) begin : host_signal_adapt
+            localparam int HOST_CHUNK_W =
+                (IF_W < ACTUAL_SRAM_W - IF_W*i) ? IF_W : ACTUAL_SRAM_W - IF_W*i;
 
-            // Split output bus towards host in IF_W-bit elements
-            assign host_rdata_elements[i] = host_outdata[IF_W*i+:IF_W];
-
-            // All input bus IF_W-bit elements have the same values
-            assign host_phys_data[IF_W*i+:IF_W] = i_data;
-        end
-
-        // Generate write bitmask according to word_sel
-        always_comb begin : host_bitmask
-            
-            host_phys_wmask = 0;
-
-            for (integer ii=0; ii<HOST_N; ii++) begin
-                // If host_word_sel points to this location, put all bits to 1
-                if (ii == host_word_sel) begin
-                    host_phys_wmask[IF_W*ii+:IF_W] = i_wmask;
-                end
-            end
+            // The final transfer may be narrower than IF_W. Keep it
+            // right-aligned on reads and store only its valid bits on writes.
+            assign host_rdata_elements[i] =
+                {{(IF_W-HOST_CHUNK_W){1'b0}}, host_outdata[IF_W*i+:HOST_CHUNK_W]};
+            assign host_phys_data[IF_W*i+:HOST_CHUNK_W] = i_data[HOST_CHUNK_W-1:0];
+            assign host_phys_wmask[IF_W*i+:HOST_CHUNK_W] =
+                (host_word_sel == i) ? i_wmask[HOST_CHUNK_W-1:0] : '0;
         end
 
         // Word selection is applied to the output, so it needs 1 cycle of shimming
@@ -188,25 +179,17 @@ generate
         assign accel_phys_addr =    i_sram_addr[ACCEL_N_BITS+ACTUAL_ADR_W-1:ACCEL_N_BITS];
 
         for (i=0; i<ACCEL_N; i++) begin : accel_signal_adapt
+            localparam int ACCEL_CHUNK_W =
+                (SRAM_W < ACTUAL_SRAM_W - SRAM_W*i) ? SRAM_W : ACTUAL_SRAM_W - SRAM_W*i;
 
-            // Split output bus towards host in SRAM_W-bit elements
-            assign accel_rdata_elements[i] = accel_outdata[SRAM_W*i+:SRAM_W];
-
-            // All input bus SRAM_W-bit elements have the same values
-            assign accel_phys_data[SRAM_W*i+:SRAM_W] = i_sram_data;
-        end
-
-        // Generate write bitmask according to word_sel
-        always_comb begin : accel_bitmask
-            
-            accel_phys_wmask = 0;
-
-            for (integer ii=0; ii<ACCEL_N; ii++) begin
-                // If accel_word_sel points to this location, put all bits to 1
-                if (ii == accel_word_sel) begin
-                    accel_phys_wmask[SRAM_W*ii+:SRAM_W] = sram_wmask_expanded;
-                end
-            end
+            // The final element may be narrower than SRAM_W. Right-align it
+            // on reads and adapt only the valid low bits on writes.
+            assign accel_rdata_elements[i] =
+                {{(SRAM_W-ACCEL_CHUNK_W){1'b0}}, accel_outdata[SRAM_W*i+:ACCEL_CHUNK_W]};
+            assign accel_phys_data[SRAM_W*i+:ACCEL_CHUNK_W] =
+                i_sram_data[ACCEL_CHUNK_W-1:0];
+            assign accel_phys_wmask[SRAM_W*i+:ACCEL_CHUNK_W] =
+                (accel_word_sel == i) ? sram_wmask_expanded[ACCEL_CHUNK_W-1:0] : '0;
         end
 
         // Word selection is applied to the output, so it needs 1 cycle of shimming
