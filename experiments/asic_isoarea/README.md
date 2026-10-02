@@ -13,9 +13,22 @@ point. The 100/120-bit-per-cycle total input budgets are traffic constraints
 for the shared activation/weight stream; the layer-level functional harness
 must enforce them before they can be called verified.
 
-The default RTL memory is inferred from registers. No macro mapping or synthesis
-run is included here. Until compatible SRAM macros are selected and validated,
-report standard-cell logic area and logical memory capacity separately.
+The functional RTL memory is inferred from registers, but the Genus `list-file.txt`
+uses the synthesis-only abstract module
+`common/ram_inferred_blackbox.sv` so large arrays are not expanded into millions
+of standard cells. This black box has no characterized macro area or power;
+report standard-cell logic area and memory capacity separately, and do not add
+them into a fabricated total. Functional simulation must use
+`RTL/src/sauria_core/sram/ram_inferred.sv` instead.
+
+The capacity below includes both ping-pong banks instantiated for each of
+SRAMA/SRAMB/SRAMC (depths 16,384/8,192/16,384 words):
+
+| Array | SRAM widths A/B/C | Logical capacity | Capacity in bytes |
+| --- | --- | ---: | ---: |
+| 4x4 | 80/80/80 bits | 6,553,600 bits | 819,200 B |
+| 6x6 | 120/120/120 bits | 9,830,400 bits | 1,228,800 B |
+| 8x8 | 160/160/160 bits | 13,107,200 bits | 1,638,400 B |
 
 No `testbench-file.txt` is supplied yet: the existing subsystem testbench targets
 `sauria_subsystem`, while this synthesis boundary is `sauria_asic_top`. A

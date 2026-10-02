@@ -139,7 +139,7 @@ RTL/src/sauria_core/psm/psm_shift_register.sv
 RTL/src/sauria_core/psm/psm_shift_fsm.sv
 RTL/src/sauria_core/psm/psm_top.sv
 RTL/src/sauria_core/sram/sram_top.sv
-RTL/src/sauria_core/sram/ram_inferred.sv
+experiments/asic_isoarea/common/ram_inferred_blackbox.sv
 RTL/src/sauria_core/sram/ram_intf_wrapper.sv
 RTL/src/sauria_core/systolic_array/sa_array.sv
 RTL/src/sauria_core/systolic_array/zero_det_neg.sv
