@@ -37,7 +37,13 @@ if {[file exists $parameters_file]} {
     while {[gets $fp_parameters line] >= 0} {
         set line_trim [string trim $line]
         if {$line_trim ne "" && ![string match "#*" $line_trim]} {
-            lappend TOP_PARAMETERS $line_trim
+            # Genus expects a Tcl list of {name value} pairs, while the
+            # project file uses one NAME=VALUE assignment per line.
+            if {[regexp {^([^=[:space:]]+)=([^=[:space:]]+)$} $line_trim -> parameter_name parameter_value]} {
+                lappend TOP_PARAMETERS [list $parameter_name $parameter_value]
+            } else {
+                lappend TOP_PARAMETERS $line_trim
+            }
         }
     }
     close $fp_parameters
