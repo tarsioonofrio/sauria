@@ -26,18 +26,15 @@ set_db lp_insert_clock_gating true
 puts "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 puts "Load hdl files"
 puts "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-set HDL_OPTIONS [list]
 if {[llength $HDL_INC_DIRS] > 0} {
-    foreach incdir $HDL_INC_DIRS {
-        lappend HDL_OPTIONS -incdir $incdir
-    }
+    set_db init_hdl_search_path $HDL_INC_DIRS
 }
 if {[llength $DEFINE_FLAGS] > 0} {
     set DEFINE_STRING [join $DEFINE_FLAGS " "]
-    lappend HDL_OPTIONS -define $DEFINE_STRING
+    read_hdl -define $DEFINE_STRING -sv {*}$HDL_FILES
+} else {
+    read_hdl -sv {*}$HDL_FILES
 }
-lappend HDL_OPTIONS -sv
-read_hdl {*}$HDL_OPTIONS {*}$HDL_FILES
 
 
 puts "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
