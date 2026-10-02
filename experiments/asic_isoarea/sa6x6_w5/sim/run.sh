@@ -42,9 +42,17 @@ while IFS= read -r define; do
     define_args+=(-define "$define")
 done < "$CONFIG_ROOT/list-define.txt"
 
+include_args=()
+while IFS= read -r include_dir; do
+    include_dir="${include_dir#"${include_dir%%[![:space:]]*}"}"
+    [[ -z "$include_dir" || "$include_dir" == \#* ]] && continue
+    if [[ "$include_dir" != /* ]]; then include_dir="$GIT_ROOT/$include_dir"; fi
+    include_args+=(-incdir "$include_dir")
+done < "$CONFIG_ROOT/list-incdir.txt"
+
 (
     cd "$SIM_ROOT"
-    xrun -f args.txt "${define_args[@]}" -define XRUN \
+    xrun -f args.txt "${include_args[@]}" "${define_args[@]}" -define XRUN \
         "${rtl_files[@]}" "$TB" -run -exit -l "$RUN_ROOT/rtl-xrun.log"
 )
 if [[ -d "$SIM_ROOT/dut.shm" ]]; then
