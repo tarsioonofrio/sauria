@@ -148,6 +148,10 @@ module tb;
         for (idx = 0; idx < CFG_WORDS; idx = idx + 1)
             write_cfg(config_words[idx][63:32], config_words[idx][31:0]);
 
+        // The top-level done interrupt is gated by both interrupt enables.
+        write_cfg(32'h5000_0004, 32'h0000_0001);
+        write_cfg(32'h5000_0008, 32'h0000_0001);
+
         // Configuration and SRAM preload are complete before the layer window.
         @(negedge clk);
         cfg_addr = 32'h5000_0000;
