@@ -101,6 +101,7 @@ localparam WOFS_W = $clog2(SRAMA_N);
 // Index counter -> Row feeders
 logic [WOFS_W-1:0]  glob_woffs;
 logic               x_ov_flag_d, x_ov_flag_q;
+logic               x_transition_flag;
 
 // Internal signals
 logic [0:Y-1]       fifo_empty, fifo_full, stall;
