@@ -34,9 +34,17 @@ while IFS= read -r source_file; do
 done < "$CONFIG_ROOT/list-file.txt"
 rtl_files+=("$RAM_RTL")
 
+define_args=()
+while IFS= read -r define; do
+    define="${define#"${define%%[![:space:]]*}"}"
+    [[ -z "$define" || "$define" == \#* ]] && continue
+    if [[ "$define" == "-define "* ]]; then define="${define#-define }"; fi
+    define_args+=(-define "$define")
+done < "$CONFIG_ROOT/list-define.txt"
+
 (
     cd "$SIM_ROOT"
-    xrun -f args.txt -f "$CONFIG_ROOT/list-define.txt" -define XRUN \
+    xrun -f args.txt "${define_args[@]}" -define XRUN \
         "${rtl_files[@]}" "$TB" -run -exit -l "$RUN_ROOT/rtl-xrun.log"
 )
 if [[ -d "$SIM_ROOT/dut.shm" ]]; then
