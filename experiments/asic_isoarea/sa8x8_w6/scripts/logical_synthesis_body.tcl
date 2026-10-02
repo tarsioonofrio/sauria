@@ -28,7 +28,9 @@ puts "Load hdl files"
 puts "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 set HDL_OPTIONS [list]
 if {[llength $HDL_INC_DIRS] > 0} {
-    lappend HDL_OPTIONS -incdir $HDL_INC_DIRS
+    foreach incdir $HDL_INC_DIRS {
+        lappend HDL_OPTIONS -incdir $incdir
+    }
 }
 if {[llength $DEFINE_FLAGS] > 0} {
     set DEFINE_STRING [join $DEFINE_FLAGS " "]
