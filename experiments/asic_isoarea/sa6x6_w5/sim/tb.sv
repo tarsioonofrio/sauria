@@ -180,6 +180,17 @@ module tb;
         $display("LAYER_CYCLES=%0d", cycles);
 
 `ifndef POWER_ACTIVITY
+        $display("SRAM_SELECT=%b", dut.sauria_logic_i.o_sram_select);
+        $display("IFMAP bank0[0]=%030x bank1[0]=%030x expected=%030x",
+            dut.sram_top_i.SRAMA_i.sram_0_i.mem[0],
+            dut.sram_top_i.SRAMA_i.sram_1_i.mem[0], ifmap_words[0]);
+        $display("WEIGHTS bank0[0]=%030x bank1[0]=%030x expected=%030x",
+            dut.sram_top_i.SRAMB_i.sram_0_i.mem[0],
+            dut.sram_top_i.SRAMB_i.sram_1_i.mem[0], weight_words[0]);
+        $display("OUTPUT bank0[0]=%030x bank1[0]=%030x",
+            dut.sram_top_i.SRAMC_i.sram_0_i.mem[0],
+            dut.sram_top_i.SRAMC_i.sram_1_i.mem[0]);
+
         // Switch the output SRAM back to the host side and verify every value.
         write_cfg(32'h5000_0000, 32'h0000_0000);
         write_cfg(32'h5000_0000, 32'h0001_0000);
