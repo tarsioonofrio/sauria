@@ -7,11 +7,15 @@ Derived from the FastConv TSMC 28 nm Genus flow at
 - Array: X=6, Y=6; signed integer operands and accumulator/output are 20 bits.
 - Multiplier and adder are exact (`MUL_TYPE=0`, all approximation values 0).
 - Target clock: 500 MHz (2 ns); TSMC28 MMMC/PVT inputs copied from FastConv.
-- External data budget metadata: 100 bits/cycle total. The logical synthesis
-  top has a 120-bit memory port, matching the 120-bit local SRAM words for this
-  square array. The 100-bit/cycle budget applies to the combined
-  activation/weight stream and must be enforced by the functional testbench.
-- Signed int8 values must be sign-extended to 20 bits before writing the host memory port.
+- External input budget and port: 100 bits/cycle total, shared by IFMAP and
+  weights. Outputs reuse the same host port. The 120-bit local SRAM word is
+  transferred as 100 bits
+  plus a 20-bit tail; `ram_intf_wrapper` handles the partial final chunk. The
+  host transfer address advances in 8-byte encoded units because `sram_top`
+  strips three low address bits. The testbench checks this packing by loading
+  and reading the same 120-bit words over the shared port.
+- The C=16 vectors are signed, Q8-scaled integers represented in 20-bit words.
+  They are not clamped to signed int8; the dataset README records this limit.
 - `multiplier_ideal` treats both operands as signed 20-bit values and produces a 40-bit product.
   The exact adder accumulates into 20 bits; assignment discards high bits, so overflow wraps
   modulo 2^20. No saturation is implemented.
@@ -25,3 +29,15 @@ The FastConv flow's synthesis scripts are copied under `logical/` and `scripts/`
 The input list retains SAURIA's native `RTL/filelist.f` order, expands its
 PULP/RTL paths, and appends the wrapper. `list-incdir.txt` supplies the
 include roots required by the vendored AXI and common-cells RTL.
+
+The `sim/` and `power/` scripts follow the FastConv Xcelium → Genus/Joules
+sequence. The RTL simulation loads one complete C=16 layer into the local SRAMs
+through the 100-bit host port, programs SAURIA's registers, executes the layer,
+reads back all 16,384 outputs, compares them against
+`s_sauria20_mac_wrap.txt`, and records an FNV-1a checksum. A gate-level pass
+with the same layer stops at the last output commit and produces the SHM used
+by `power/run.sh`; its report covers standard-cell logic only. SRAM remains a
+functional simulation model and is a synthesis black box with no characterized
+macro area or power, so the activity-based report excludes SRAM energy. The
+host preload occurs before the layer window because this wrapper has no DMA;
+therefore this is not yet a full-layer external-memory power result.
