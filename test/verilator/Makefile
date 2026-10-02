@@ -19,14 +19,13 @@ veri_flags = \
 	--trace-max-array 256 \
 	--trace-max-width 256 \
 	-Wno-lint -Wno-style -Wno-STMTDLY -Wno-fatal \
-	-CFLAGS "-std=c++11 -D$(arith)" \
+	-CFLAGS "-std=c++14 -D$(arith)" \
 	--clk clk_sys \
 	--exe \
 	--trace-structs \
 	--trace-params \
 	--trace-underscore \
 	--assert \
-	--savable \
 	--build
 
 junk += Test-Sim
@@ -43,4 +42,3 @@ junk += obj_dir
 
 clean:
 	rm -rf $(junk)
-	

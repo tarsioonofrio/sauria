@@ -41,6 +41,8 @@ module axi_mem_slave #(
     parameter int unsigned AxiDataWidth = 32'd0,
     /// Width of the ID port
     parameter int unsigned AxiIdWidth = 32'd0,
+    /// Address bits implemented by the simulation memory array.
+    parameter int unsigned MemAddrWidth = 24,
 
     /// Request struct of the AXI4 port.
     parameter type req_t = logic,
@@ -71,7 +73,8 @@ logic                         ram_wren;
 logic                         ram_rden;
 logic  [AxiDataWidth-1:0]     ram_dout, ram_dout_q1;
 
-logic [7:0] mem [addr_t];
+localparam int unsigned MEM_BYTES = 1 << MemAddrWidth;
+logic [7:0] mem [0:MEM_BYTES-1];
 
 // ----------------------
 // MODULE INSTANTIATION

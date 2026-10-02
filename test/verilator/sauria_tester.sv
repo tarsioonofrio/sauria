@@ -290,6 +290,7 @@ module sauria_tester(
         .AxiAddrWidth   (DATA_AXI_ADDR_WIDTH),
         .AxiDataWidth   (DATA_AXI_DATA_WIDTH),
         .AxiIdWidth     (DATA_AXI_ID_WIDTH),
+        .MemAddrWidth   (22),
 		.req_t          (dat_req_t),
 		.resp_t         (dat_resp_t)
     ) i_sim_mem_0 (
@@ -301,7 +302,8 @@ module sauria_tester(
     );
 
     integer         n_errs, n_errs_prev;
-    logic [7:0]     gold_dram[dat_addr_t];
+    localparam int unsigned TEST_MEM_BYTES = 1 << 22;
+    logic [7:0]     gold_dram[0:TEST_MEM_BYTES-1];
 
     // Load memories
     initial begin: data_load_check
@@ -385,7 +387,7 @@ module sauria_tester(
 
             // Write output memory contents to a file for analysis
             if (`WRITE_OUTPUTS == 1)
-                $writememh({`OUTPUTS_PATH,"/test_results.txt"}, i_sim_mem_0.mem, DRAM_OFFSET+dram_outoffs);
+                $writememh({`OUTPUTS_PATH,"/test_results.txt"}, i_sim_mem_0.mem, DRAM_OFFSET+dram_outoffs, DRAM_OFFSET+dram_endoffs);
 
         end
     end
