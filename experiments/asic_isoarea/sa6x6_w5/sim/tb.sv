@@ -95,6 +95,18 @@ module tb;
                 mem_wren = 1'b1;
                 @(negedge clk);
                 mem_wren = 1'b0;
+                if (word_index == 0 && base == 32'h0004_0000) begin
+                    $display("HOST_WRITE base=%08x part=%0d addr=%08x local=%08x select=%b chunk=%b phys_addr=%08x phys_data=%030x phys_wmask=%030x bank0=%030x bank1=%030x",
+                        base, part, mem_addr,
+                        dut.sram_top_i.host_local_address,
+                        dut.sram_top_i.SRAMA_i.host_word_sel,
+                        dut.sram_top_i.SRAMA_i.i_select,
+                        dut.sram_top_i.SRAMA_i.host_phys_addr,
+                        dut.sram_top_i.SRAMA_i.host_phys_data,
+                        dut.sram_top_i.SRAMA_i.host_phys_wmask,
+                        dut.sram_top_i.SRAMA_i.sram_0_i.mem[0],
+                        dut.sram_top_i.SRAMA_i.sram_1_i.mem[0]);
+                end
             end
         end
     endtask
@@ -145,6 +157,16 @@ module tb;
             write_sram_word(32'h0008_0000, idx, weight_words[idx]);
         for (idx = 0; idx < OUTPUT_WORDS; idx = idx + 1)
             write_sram_word(32'h000C_0000, idx, psum_words[idx]);
+
+        read_sram_word(32'h0004_0000, 0, read_word);
+        $display("HOST_READBACK_IFMAP=%030x EXPECTED=%030x", read_word, ifmap_words[0]);
+        if (read_word !== ifmap_words[0]) $fatal(1, "IFMAP SRAM host round-trip failed");
+        read_sram_word(32'h0008_0000, 0, read_word);
+        $display("HOST_READBACK_WEIGHTS=%030x EXPECTED=%030x", read_word, weight_words[0]);
+        if (read_word !== weight_words[0]) $fatal(1, "weights SRAM host round-trip failed");
+        read_sram_word(32'h000C_0000, 0, read_word);
+        $display("HOST_READBACK_OUTPUT=%030x EXPECTED=%030x", read_word, psum_words[0]);
+        if (read_word !== psum_words[0]) $fatal(1, "output SRAM host round-trip failed");
 
         for (idx = 0; idx < CFG_WORDS; idx = idx + 1)
             write_cfg(config_words[idx][63:32], config_words[idx][31:0]);
