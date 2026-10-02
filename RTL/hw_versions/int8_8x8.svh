@@ -18,7 +18,7 @@
 // Jordi Fornt <jfornt@bsc.es>
 
 // Systolic Array Configuration
-`define X   16                      // X-size of the systolic array
+`define X   8                       // X-size of the systolic array
 `define Y   8                       // Y-size of the systolic array
 
 // Precision Configuration
