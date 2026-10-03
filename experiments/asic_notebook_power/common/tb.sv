@@ -1144,6 +1144,27 @@ module tb;
                     mem_wren = 1'b1;
                     @(posedge clk);
                     #1ps;
+                    if (external_addr + offset < dram_b_offset)
+                        $display("DMA_IFMAP_HOST_WRITE cycle=%0d job=%0d external_byte=%08x local_byte=%08x chunk_bytes=%0d lane_offset=%0d beat_data=%0h beat_mask=%0h mem_addr=%08x host_local=%08x host_select_d=%08x host_select_q=%08x sram_select=%b host_word_sel=%0d host_phys_addr=%0d host_phys_data=%0h host_phys_wmask=%0h bank0_wren=%b bank0_addr=%0d bank0_data=%0h bank0_mask=%0h bank1_wren=%b bank1_addr=%0d bank1_data=%0h bank1_mask=%0h",
+                                 layer_cycles, dma_jobs + 1,
+                                 external_addr + offset, local_addr + offset,
+                                 chunk_bytes, lane_offset, beat_data, beat_mask,
+                                 mem_addr, dut.sram_top_i.host_local_address,
+                                 dut.sram_top_i.host_sram_select_d,
+                                 dut.sram_top_i.host_sram_select_q,
+                                 dut.sram_top_i.i_select[0],
+                                 dut.sram_top_i.SRAMA_i.host_word_sel,
+                                 dut.sram_top_i.SRAMA_i.host_phys_addr,
+                                 dut.sram_top_i.SRAMA_i.host_phys_data,
+                                 dut.sram_top_i.SRAMA_i.host_phys_wmask,
+                                 dut.sram_top_i.SRAMA_i.wren_0,
+                                 dut.sram_top_i.SRAMA_i.addr_0,
+                                 dut.sram_top_i.SRAMA_i.indata_0,
+                                 dut.sram_top_i.SRAMA_i.wmask_0,
+                                 dut.sram_top_i.SRAMA_i.wren_1,
+                                 dut.sram_top_i.SRAMA_i.addr_1,
+                                 dut.sram_top_i.SRAMA_i.indata_1,
+                                 dut.sram_top_i.SRAMA_i.wmask_1);
                     mem_wren = 1'b0;
                     mem_wmask = '0;
                     for (lane = 0; lane < chunk_bytes; lane = lane + 1)
