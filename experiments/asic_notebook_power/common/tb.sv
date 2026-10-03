@@ -261,6 +261,10 @@ module tb;
         integer sram_beats;
         integer beat_cycles;
         integer trace_c_read;
+        integer pending_offset;
+        integer pending_lane_offset;
+        integer pending_chunk_bytes;
+        logic pending_read_valid;
         begin
             if (byte_count == 0) $fatal(1, "DMA command has zero BTT");
             copy_from_dram = ((reader_addr & 32'hf000_0000) != SAURIA_DMA_REGION);
@@ -297,7 +301,8 @@ module tb;
             sram_beats = ((local_addr & (MEM_BYTES-1)) + byte_count + MEM_BYTES - 1) / MEM_BYTES;
             latency_cycles = `DRAM_LATENCY;
             repeat (latency_cycles) @(posedge clk);
-            dma_service_cycles = dma_service_cycles + latency_cycles + dram_beats * beat_cycles + (copy_from_dram ? 0 : sram_beats * 2);
+            dma_service_cycles = dma_service_cycles + latency_cycles + dram_beats * beat_cycles +
+                                 (copy_from_dram ? 0 : (sram_beats * 2 + beat_cycles));
 
             if (copy_from_dram) begin
                 // The realigner accepts byte offsets on both sides. Build each
@@ -340,9 +345,15 @@ module tb;
                     repeat (beat_cycles - 1) @(posedge clk);
                 end
             end else begin
-                // sram_top's host read has two registered stages. The model
-                // holds one local read in flight and honors that response
-                // latency before returning the corresponding DRAM write.
+                // sram_top's host output register captures the prior host
+                // read response when i_rden is asserted. Keep a response tag
+                // in flight so each returned word is written to the DRAM
+                // offset belonging to its request, rather than the current
+                // request's offset.
+                pending_read_valid = 1'b0;
+                pending_offset = 0;
+                pending_lane_offset = 0;
+                pending_chunk_bytes = 0;
                 for (offset = 0; offset < byte_count; offset = offset + chunk_bytes) begin
                     lane_offset = (local_addr + offset) & (MEM_BYTES-1);
                     chunk_bytes = ((byte_count - offset) < (MEM_BYTES - lane_offset)) ?
@@ -358,20 +369,67 @@ module tb;
                     end
                     @(posedge clk);
                     #1ps;
+                    beat_data = mem_rdata;
+                    if (pending_read_valid) begin
+                        if (pending_lane_offset + pending_chunk_bytes > MEM_BYTES)
+                            $fatal(1, "pending SRAM response exceeds host word: lane=%0d bytes=%0d", pending_lane_offset, pending_chunk_bytes);
+                        if (pending_offset < 0 || pending_offset + pending_chunk_bytes > byte_count)
+                            $fatal(1, "pending SRAM response exceeds DMA transfer: offset=%0d bytes=%0d BTT=%0d", pending_offset, pending_chunk_bytes, byte_count);
+                        for (lane = 0; lane < pending_chunk_bytes; lane = lane + 1)
+                            dram[external_addr + pending_offset + lane] =
+                                beat_data[(pending_lane_offset+lane)*8 +: 8];
+                        dma_ext_write_bytes = dma_ext_write_bytes + pending_chunk_bytes;
+                    end
+                    if (trace_c_read)
+                        $display("DMA_C_READ_RESPONSE n=%0d response_offset=%0d dram_addr=%08x lane_offset=%0d bytes=%0d rdata=%0h c_host=%0h host_out=%0h bank_q=%08x select=%b",
+                                 dma_c_read_debug_count,
+                                 pending_offset,
+                                 external_addr+pending_offset,
+                                 pending_lane_offset,
+                                 pending_chunk_bytes,
+                                 beat_data,
+                                 dut.sram_top_i.host_sramc_data,
+                                 dut.sram_top_i.host_sram_output,
+                                 dut.sram_top_i.host_sram_select_q,
+                                 dut.sram_top_i.i_select[2]);
+                    pending_offset = offset;
+                    pending_lane_offset = lane_offset;
+                    pending_chunk_bytes = chunk_bytes;
+                    pending_read_valid = 1'b1;
                     mem_rden = 1'b0;
                     if (trace_c_read)
-                        $display("DMA_C_READ_EDGE1 n=%0d rdata=%0h c_host=%0h bank_d=%08x bank_q=%08x select=%b", dma_c_read_debug_count, mem_rdata, dut.sram_top_i.host_sramc_data, dut.sram_top_i.host_sram_select_d, dut.sram_top_i.host_sram_select_q, dut.sram_top_i.i_select[2]);
-                    repeat (beat_cycles - 1) @(posedge clk);
-                    #1ps;
-                    beat_data = mem_rdata;
-                    if (trace_c_read)
-                        $display("DMA_C_READ_CAPTURE n=%0d dram_addr=%08x mem_addr=%08x lane_offset=%0d rdata=%0h c_host=%0h host_out=%0h bank_d=%08x bank_q=%08x select=%b", dma_c_read_debug_count, external_addr+offset, (local_addr+offset) & ~(MEM_BYTES-1), lane_offset, mem_rdata, dut.sram_top_i.host_sramc_data, dut.sram_top_i.host_sram_output, dut.sram_top_i.host_sram_select_d, dut.sram_top_i.host_sram_select_q, dut.sram_top_i.i_select[2]);
-                    if (offset + MEM_BYTES >= byte_count) pulse_dma_irq(2'b01);
-                    for (lane = 0; lane < chunk_bytes; lane = lane + 1)
-                        dram[external_addr + offset + lane] = beat_data[(lane_offset+lane)*8 +: 8];
-                    dma_ext_write_bytes = dma_ext_write_bytes + chunk_bytes;
+                        $display("DMA_C_READ_EDGE n=%0d rdata=%0h c_host=%0h bank_d=%08x bank_q=%08x select=%b", dma_c_read_debug_count, mem_rdata, dut.sram_top_i.host_sramc_data, dut.sram_top_i.host_sram_select_d, dut.sram_top_i.host_sram_select_q, dut.sram_top_i.i_select[2]);
                     repeat (beat_cycles - 1) @(posedge clk);
                 end
+                if (!pending_read_valid)
+                    $fatal(1, "SRAM-to-DRAM transfer ended without a pending host response");
+
+                // One tagged drain advances the host output register for the
+                // final real request. The drain itself has no DRAM destination
+                // tag and must not create an extra output beat.
+                @(negedge clk);
+                mem_addr = (local_addr + pending_offset) & ~(MEM_BYTES-1);
+                mem_rden = 1'b1;
+                @(posedge clk);
+                #1ps;
+                beat_data = mem_rdata;
+                if (pending_lane_offset + pending_chunk_bytes > MEM_BYTES ||
+                    pending_offset + pending_chunk_bytes > byte_count)
+                    $fatal(1, "final SRAM response tag is outside its transfer bounds");
+                for (lane = 0; lane < pending_chunk_bytes; lane = lane + 1)
+                    dram[external_addr + pending_offset + lane] =
+                        beat_data[(pending_lane_offset+lane)*8 +: 8];
+                dma_ext_write_bytes = dma_ext_write_bytes + pending_chunk_bytes;
+                if (((local_addr & 32'hffff_0000) == 32'hd00c_0000) &&
+                    dma_c_read_debug_count < 3)
+                    $display("DMA_C_READ_DRAIN response_offset=%0d dram_addr=%08x bytes=%0d rdata=%0h",
+                             pending_offset, external_addr+pending_offset,
+                             pending_chunk_bytes, beat_data);
+                pending_read_valid = 1'b0;
+                mem_rden = 1'b0;
+                pulse_dma_irq(2'b01);
+                if (pending_read_valid)
+                    $fatal(1, "SRAM response tag remained valid after drain");
             end
 
             dma_jobs = dma_jobs + 1;
