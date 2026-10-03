@@ -463,8 +463,10 @@ always_comb begin
         if (final_dil_pat[i]) begin
             target_array[i] = elm_idx_array[i] + regs_used_idx + 1;     // +1 to distinguish from zeros (unused)
 
-            // Last read position is the last location (+1) with a value that fits in the registers
-            if (target_array[i]<=M) begin
+            // Advance only past elements that are accepted by the currently free registers.
+            // When elm_number exceeds n_free_regs, later elements in this SRAM word
+            // must remain available for the next feeder cycle.
+            if (target_array[i]<=new_active_idx) begin
                 last_rd = i;
             end
 
