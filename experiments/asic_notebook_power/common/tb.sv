@@ -76,6 +76,15 @@ module tb;
     logic [31:0] dma_btt_q = '0;
     logic [31:0] dma_irq_mask_q = '0;
     logic [1:0] dma_irq_pending_q = '0;
+    logic dma_reader_start_pending_q = 1'b0;
+    logic dma_writer_start_pending_q = 1'b0;
+    logic [31:0] dma_reader_start_addr_q = '0;
+    logic [31:0] dma_reader_start_btt_q = '0;
+    logic [31:0] dma_writer_start_addr_q = '0;
+    logic [31:0] dma_writer_start_btt_q = '0;
+    logic [31:0] dma_job_reader_addr_q = '0;
+    logic [31:0] dma_job_writer_addr_q = '0;
+    logic [31:0] dma_job_btt_q = '0;
     logic dma_job_start = 1'b0;
     logic [1:0] dma_irq_set = '0;
     logic measure_active = 1'b0;
@@ -206,6 +215,15 @@ module tb;
         end
     endtask
 
+    task automatic pulse_dma_irq(input logic [1:0] irq_bits);
+        begin
+            @(negedge clk);
+            dma_irq_set = irq_bits;
+            @(negedge clk);
+            dma_irq_set = '0;
+        end
+    endtask
+
     task automatic dma_transfer(input logic [31:0] reader_addr,
                                 input logic [31:0] writer_addr,
                                 input logic [31:0] byte_count);
@@ -261,6 +279,11 @@ module tb;
                         beat_mask[lane*8 +: 8] = 8'hff;
                         beat_data[lane*8 +: 8] = dram[external_addr + offset + lane];
                     end
+                    // The realigner can finish producing the final word while
+                    // that word is still held in its downstream FIFO. Model
+                    // that one-beat separation instead of asserting both DMA
+                    // interrupts together at command completion.
+                    if (offset + MEM_BYTES >= byte_count) pulse_dma_irq(2'b01);
                     @(negedge clk);
                     mem_addr = local_addr + offset;
                     mem_data = beat_data;
@@ -297,6 +320,7 @@ module tb;
                     repeat (beat_cycles - 1) @(posedge clk);
                     #1ps;
                     beat_data = mem_rdata;
+                    if (offset + MEM_BYTES >= byte_count) pulse_dma_irq(2'b01);
                     for (lane = 0; lane < valid_bytes; lane = lane + 1)
                         dram[external_addr + offset + lane] = beat_data[lane*8 +: 8];
                     dma_ext_write_bytes = dma_ext_write_bytes + valid_bytes;
@@ -318,6 +342,12 @@ module tb;
         logic aw_fire;
         logic w_fire;
         logic write_complete;
+        logic reader_seen;
+        logic writer_seen;
+        logic [31:0] reader_addr_snapshot;
+        logic [31:0] reader_btt_snapshot;
+        logic [31:0] writer_addr_snapshot;
+        logic [31:0] writer_btt_snapshot;
         logic [31:0] write_addr;
         logic [31:0] write_data;
         logic [3:0] write_strb;
@@ -332,6 +362,15 @@ module tb;
             dma_btt_q <= '0;
             dma_irq_mask_q <= '0;
             dma_irq_pending_q <= '0;
+            dma_reader_start_pending_q <= 1'b0;
+            dma_writer_start_pending_q <= 1'b0;
+            dma_reader_start_addr_q <= '0;
+            dma_reader_start_btt_q <= '0;
+            dma_writer_start_addr_q <= '0;
+            dma_writer_start_btt_q <= '0;
+            dma_job_reader_addr_q <= '0;
+            dma_job_writer_addr_q <= '0;
+            dma_job_btt_q <= '0;
             dma_b_valid <= 1'b0;
             dma_job_start <= 1'b0;
         end else begin
@@ -342,6 +381,12 @@ module tb;
             write_addr = dma_aw_pending ? dma_aw_addr_q : dma_aw_addr;
             write_data = dma_w_pending ? dma_w_data_q : dma_w_data;
             write_strb = dma_w_pending ? dma_w_strb_q : dma_w_strb;
+            reader_seen = dma_reader_start_pending_q;
+            writer_seen = dma_writer_start_pending_q;
+            reader_addr_snapshot = dma_reader_start_addr_q;
+            reader_btt_snapshot = dma_reader_start_btt_q;
+            writer_addr_snapshot = dma_writer_start_addr_q;
+            writer_btt_snapshot = dma_writer_start_btt_q;
 
             if (dma_b_valid && dma_b_ready) dma_b_valid <= 1'b0;
             if (aw_fire) begin
@@ -359,7 +404,7 @@ module tb;
                 dma_w_pending <= 1'b0;
                 dma_b_valid <= 1'b1;
                 dma_b_resp <= 2'b00;
-                $display("DMA_AXI_WRITE offset=%02x data=%08x strb=%x bready=%b job_start=%b irq_pending=%b", write_addr[7:0], write_data, write_strb, dma_b_ready, dma_job_start, dma_irq_pending_q);
+                $display("DMA_AXI_WRITE addr=%08x data=%08x strb=%x aw_from_pending=%b w_from_pending=%b bready=%b irq_pending=%b", write_addr, write_data, write_strb, dma_aw_pending, dma_w_pending, dma_b_ready, dma_irq_pending_q);
                 case (write_addr[7:0])
                     DMA_CFG_IRQ_MASK: dma_irq_mask_q <= write_data;
                     DMA_CFG_IRQ_STATUS: begin
@@ -369,7 +414,39 @@ module tb;
                     DMA_CFG_WRITER_ADDR: dma_writer_addr_q <= write_data;
                     DMA_CFG_BTT: dma_btt_q <= write_data;
                     DMA_CFG_CTRL: begin
-                        if (write_data[0] && write_data[1]) dma_job_start <= 1'b1;
+                        if (write_strb[0] && write_data[0]) begin
+                            if (dma_reader_start_pending_q)
+                                $fatal(1, "reader start repeated before it paired with a writer start");
+                            reader_seen = 1'b1;
+                            reader_addr_snapshot = dma_reader_addr_q;
+                            reader_btt_snapshot = dma_btt_q;
+                            dma_reader_start_pending_q <= 1'b1;
+                            dma_reader_start_addr_q <= dma_reader_addr_q;
+                            dma_reader_start_btt_q <= dma_btt_q;
+                            $display("DMA_READER_START addr=%08x btt=%0d paired_before=%b", dma_reader_addr_q, dma_btt_q, dma_writer_start_pending_q);
+                        end
+                        if (write_strb[0] && write_data[1]) begin
+                            if (dma_writer_start_pending_q)
+                                $fatal(1, "writer start repeated before it paired with a reader start");
+                            writer_seen = 1'b1;
+                            writer_addr_snapshot = dma_writer_addr_q;
+                            writer_btt_snapshot = dma_btt_q;
+                            dma_writer_start_pending_q <= 1'b1;
+                            dma_writer_start_addr_q <= dma_writer_addr_q;
+                            dma_writer_start_btt_q <= dma_btt_q;
+                            $display("DMA_WRITER_START addr=%08x btt=%0d paired_before=%b", dma_writer_addr_q, dma_btt_q, dma_reader_start_pending_q);
+                        end
+                        if (reader_seen && writer_seen) begin
+                            if (reader_btt_snapshot != writer_btt_snapshot)
+                                $fatal(1, "reader/writer starts paired different BTT values: reader=%0d writer=%0d", reader_btt_snapshot, writer_btt_snapshot);
+                            dma_job_reader_addr_q <= reader_addr_snapshot;
+                            dma_job_writer_addr_q <= writer_addr_snapshot;
+                            dma_job_btt_q <= reader_btt_snapshot;
+                            dma_job_start <= 1'b1;
+                            dma_reader_start_pending_q <= 1'b0;
+                            dma_writer_start_pending_q <= 1'b0;
+                            $display("DMA_CHANNELS_PAIRED AR=%08x AW=%08x BTT=%0d", reader_addr_snapshot, writer_addr_snapshot, reader_btt_snapshot);
+                        end
                     end
                     default: begin
                     end
@@ -385,16 +462,14 @@ module tb;
         end
     end
 
-    // The controller expects independently visible completion interrupts and
-    // clears them by writing DMA_CFG_IRQ_STATUS. Keep them asserted until then.
+    // The reader interrupt marks the final source beat entering the one-beat
+    // staging slot. The writer interrupt follows only after that final beat is
+    // committed to its destination. Each sticky bit is independently W1C.
     always begin : dma_worker
         @(posedge dma_job_start);
         @(negedge clk);
-        dma_transfer(dma_reader_addr_q, dma_writer_addr_q, dma_btt_q);
-        @(negedge clk);
-        dma_irq_set = 2'b11;
-        @(negedge clk);
-        dma_irq_set = '0;
+        dma_transfer(dma_job_reader_addr_q, dma_job_writer_addr_q, dma_job_btt_q);
+        pulse_dma_irq(2'b10);
     end
 
     initial begin : layer_test
@@ -454,6 +529,7 @@ module tb;
         while ((layer_done !== 1'b1) && (layer_cycles < max_cycles_arg)) @(posedge clk);
         if (layer_done !== 1'b1) begin
             $display("TIMEOUT_DEBUG ctrl_start=%b ctrl_ready=%b ctrl_done=%b if_state=%0d dma_state=%0d dma_sub_state=%0d first_dma=%b goto_sauria=%b dma_irq_inputs=%b%b irq_mask=%08x irq_pending=%b dma_bvalid=%b dma_bready=%b dma_aw_pending=%b dma_w_pending=%b", dut.df_controller_i.start_q, dut.df_controller_i.ready_q, dut.df_controller_i.done_q, dut.df_controller_i.sauria_interface_I.state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.sub_state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.first_dma_iter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.goto_sync_sauria, dma_reader_interrupt, dma_writer_interrupt, dma_irq_mask_q, dma_irq_pending_q, dma_b_valid, dma_b_ready, dma_aw_pending, dma_w_pending);
+            $display("DMA_START_PENDING reader=%b addr=%08x btt=%0d writer=%b addr=%08x btt=%0d", dma_reader_start_pending_q, dma_reader_start_addr_q, dma_reader_start_btt_q, dma_writer_start_pending_q, dma_writer_start_addr_q, dma_writer_start_btt_q);
             $display("DMA_FSM_DEBUG next=%0d first_tile=%b addr=%08x wdata=%08x addr_sent=%b data_sent=%b start=%b start_wresp_sync=%b wresp_sync=%b wresp_count=%0d btt=%0d local_addr=%08x y=%0d/%0d z=%0d/%0d ycounter=%0d zcounter=%0d last_iter=%b ifmaps_change=%b weights_change=%b psums_change=%b", dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.next_action, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.first_tile, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wdata, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.data_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start_wresp_sync, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_sync_state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_counter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.btt, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.local_SRAM_addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.y, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ylim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.z, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zlim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ycounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zcounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.last_iter_sig, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ifmaps_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.weights_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.psums_change);
             $fatal(1, "layer timed out after %0d cycles; DMA jobs=%0d", layer_cycles, dma_jobs);
         end
