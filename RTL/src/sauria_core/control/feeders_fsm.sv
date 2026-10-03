@@ -174,7 +174,9 @@ always_comb begin
     // Otherwise stall if any FIFO is empty -> Except if we are done with that feeder (cnt_hold), then just let it roll
     end else begin
 
-        o_pipeline_en = i_pipeline_gate && pipeline_en && !((i_act_fifo_empty && (!act_cnt_hold_q)) || (i_wei_fifo_empty && (!wei_cnt_hold_q)));
+        o_pipeline_en = i_pipeline_gate && pipeline_en &&
+            !((i_act_fifo_empty && (!act_cnt_hold_q) && (main_state_q != ACT_FINISHED)) ||
+              (i_wei_fifo_empty && (!wei_cnt_hold_q)));
 
     end
 end
