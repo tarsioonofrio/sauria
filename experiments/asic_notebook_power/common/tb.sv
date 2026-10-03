@@ -105,6 +105,8 @@ module tb;
     integer layer_cycles = 0;
     integer errors = 0;
     integer fd;
+    integer psm_trace_fd = 0;
+    integer psm_trace_count = 0;
     integer idx;
     integer byte_idx;
     integer beat_idx;
@@ -132,6 +134,20 @@ module tb;
     realtime layer_end_ns;
 
     always #1ns clk = ~clk;
+
+    always @(posedge clk) begin
+        if (measure_active && dut.sauria_logic_i.psm_top_i.o_sramc_wren && psm_trace_fd != 0) begin
+            psm_trace_count = psm_trace_count + 1;
+            $fdisplay(psm_trace_fd,
+                "PSM_C_WRITE cycle=%0d index=%0d addr=%0d mask=%b data=%0h ctx=%0d scan=%0d",
+                layer_cycles, psm_trace_count,
+                dut.sauria_logic_i.psm_top_i.o_sramc_addr,
+                dut.sauria_logic_i.psm_top_i.o_sramc_wmask,
+                dut.sauria_logic_i.psm_top_i.o_sramc_wdata,
+                dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.ctx_cnt,
+                dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.scan_cnt);
+        end
+    end
 
     assign dma_aw_ready = !dma_aw_pending && !dma_b_valid;
     assign dma_w_ready = !dma_w_pending && !dma_b_valid;
@@ -537,6 +553,9 @@ module tb;
         measure_active = 1'b1;
         @(negedge clk);
         layer_start_ns = $realtime;
+        psm_trace_fd = $fopen({artifact_dir, "/sramc-write-trace.txt"}, "w");
+        if (psm_trace_fd == 0) $fatal(1, "cannot create SRAM C write trace");
+        $fdisplay(psm_trace_fd, "# PSM_C_WRITE cycle=<n> index=<n> addr=<n> mask=<bits> data=<hex> ctx=<n> scan=<n>");
         fd = $fopen({artifact_dir, "/layer_window.txt"}, "w");
         if (fd == 0) $fatal(1, "cannot create layer window file");
         $fdisplay(fd, "%0.3f", layer_start_ns);
@@ -559,6 +578,7 @@ module tb;
             $fatal(1, "layer timed out after %0d cycles; DMA jobs=%0d", layer_cycles, dma_jobs);
         end
         measure_active = 1'b0;
+        $fclose(psm_trace_fd);
         // layer_done is asserted only after the controller has completed its
         // final external write. End the activity window here, before golden
         // readback and reporting work in the testbench.
