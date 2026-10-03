@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "Python"))
 
 from src import data_helper, execution_model, sauria_lib  # noqa: E402
-from src.config_helper import get_sauria_regs  # noqa: E402
+from src.config_helper import get_controller_regs, get_sauria_regs  # noqa: E402
 from src.hw_versions import get_params  # noqa: E402
 
 
@@ -163,6 +163,13 @@ def main() -> int:
 
     weights = data_helper.optimize_weight_tensor_shape(b, conv)
     regs, _ = get_sauria_regs(conv, hopts, silent=True)
+    _, _, _, loop_order = execution_model.get_tiling_loops(conv)
+    dram, dram_gold, dram_offsets = data_helper.assign_dram_values(
+        a, weights, c, output, 0, conv, hopts
+    )
+    controller_args = get_controller_regs(
+        conv, regs, len(regs), dram_offsets, loop_order, silent=True
+    )
     float_mode = bool(hopts["OP_TYPE"])
     x_lanes, y_lanes, c_lanes = profile["lanes"]
     a_words = pack(a, y_lanes, hopts["IA_W"], float_mode, hopts["IA_MANT"])
@@ -175,6 +182,21 @@ def main() -> int:
     write_words(outdir / "psum_init.mem", c_words, c_lanes * hopts["OC_W"])
     write_words(outdir / "golden.mem", [int(x) for x in gold_words], hopts["OC_W"])
     write_words(outdir / "config.mem", [((int(addr) & 0xffffffff) << 32) | (int(val) & 0xffffffff) for addr, val in regs], 64)
+    # Match Conv2d_SAURIA's native path: the host programs the dataflow
+    # controller once, then its start register advances all tiles and its DMA
+    # commands fetch from / write back to the external-memory image.
+    controller_writes = [(int(hopts["CTRL_offset"]) + 0x8, 0x3)]
+    controller_writes.extend(
+        (int(hopts["CTRL_offset"]) + 0x10 + 4 * index, int(value) & 0xffffffff)
+        for index, value in enumerate(controller_args)
+    )
+    write_words(
+        outdir / "controller_config.mem",
+        [((address & 0xffffffff) << 32) | value for address, value in controller_writes],
+        64,
+    )
+    write_words(outdir / "dram.mem", [int(value) for value in dram], 8)
+    write_words(outdir / "dram_gold.mem", [int(value) for value in dram_gold], 8)
 
     layer = {
         "input_shape": list(shapes[0]),
@@ -187,12 +209,17 @@ def main() -> int:
     }
     counts = {
         "config_words": len(regs),
+        "controller_config_words": len(controller_writes),
+        "dram_bytes": int(dram.size),
         "ifmap_words": len(a_words),
         "weight_words": len(b_words),
         "output_words": len(c_words),
         "output_values": int(output.size),
     }
-    files = ["ifmap.mem", "weights.mem", "psum_init.mem", "golden.mem", "config.mem"]
+    files = [
+        "ifmap.mem", "weights.mem", "psum_init.mem", "golden.mem", "config.mem",
+        "controller_config.mem", "dram.mem", "dram_gold.mem",
+    ]
     manifest = {
         "profile": args.profile,
         "version": profile["version"],
@@ -204,6 +231,14 @@ def main() -> int:
         "memory_capacity_bits_per_bank": [hopts["MEMA_W"] * hopts["MEMA_DEPTH"], hopts["MEMB_W"] * hopts["MEMB_DEPTH"], hopts["MEMC_W"] * hopts["MEMC_DEPTH"]],
         "layer": layer,
         "tiling": tiling,
+        "controller": {
+            "config_base": int(hopts["CTRL_offset"]),
+            "register_count": len(controller_args),
+            "layer_start_address": int(hopts["CTRL_offset"]),
+            "dram_offsets_bytes": [int(x) for x in dram_offsets],
+            "loop_order": int(loop_order),
+            "start_policy": "one layer start; controller schedules all tiles",
+        },
         "golden_model": golden_model,
         "counts": counts,
         "sha256": {name: sha256(outdir / name) for name in files},
