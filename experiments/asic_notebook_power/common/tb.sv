@@ -107,6 +107,9 @@ module tb;
     integer fd;
     integer psm_trace_fd = 0;
     integer psm_trace_count = 0;
+    integer sramc_host_trace_fd = 0;
+    integer sramc_host_read_count = 0;
+    integer sramc_dump_fd = 0;
     integer dma_c_read_debug_count = 0;
     integer idx;
     integer byte_idx;
@@ -152,6 +155,21 @@ module tb;
                 dut.sram_top_i.SRAMC_i.wren_0,
                 dut.sram_top_i.SRAMC_i.addr_1,
                 dut.sram_top_i.SRAMC_i.wren_1);
+            $fdisplay(psm_trace_fd,
+                "PSM_C_PHYSICAL cycle=%0d bank0_addr=%0d bank0_wren=%b bank0_cen=%b bank0_rdwen=%b bank0_data=%0h bank0_wmask=%0h bank1_addr=%0d bank1_wren=%b bank1_cen=%b bank1_rdwen=%b bank1_data=%0h bank1_wmask=%0h",
+                layer_cycles,
+                dut.sram_top_i.SRAMC_i.addr_0,
+                dut.sram_top_i.SRAMC_i.wren_0,
+                dut.sram_top_i.SRAMC_i.cen_0,
+                dut.sram_top_i.SRAMC_i.rdwen_0,
+                dut.sram_top_i.SRAMC_i.indata_0,
+                dut.sram_top_i.SRAMC_i.wmask_0,
+                dut.sram_top_i.SRAMC_i.addr_1,
+                dut.sram_top_i.SRAMC_i.wren_1,
+                dut.sram_top_i.SRAMC_i.cen_1,
+                dut.sram_top_i.SRAMC_i.rdwen_1,
+                dut.sram_top_i.SRAMC_i.indata_1,
+                dut.sram_top_i.SRAMC_i.wmask_1);
         end
     end
 
@@ -264,6 +282,7 @@ module tb;
         integer pending_offset;
         integer pending_lane_offset;
         integer pending_chunk_bytes;
+        logic [31:0] pending_bank;
         logic pending_read_valid;
         begin
             if (byte_count == 0) $fatal(1, "DMA command has zero BTT");
@@ -354,6 +373,7 @@ module tb;
                 pending_offset = 0;
                 pending_lane_offset = 0;
                 pending_chunk_bytes = 0;
+                pending_bank = '0;
                 for (offset = 0; offset < byte_count; offset = offset + chunk_bytes) begin
                     lane_offset = (local_addr + offset) & (MEM_BYTES-1);
                     chunk_bytes = ((byte_count - offset) < (MEM_BYTES - lane_offset)) ?
@@ -370,6 +390,44 @@ module tb;
                     @(posedge clk);
                     #1ps;
                     beat_data = mem_rdata;
+                    if (((local_addr & 32'hffff_0000) == 32'hd00c_0000) &&
+                        sramc_host_trace_fd != 0) begin
+                        sramc_host_read_count = sramc_host_read_count + 1;
+                        $fdisplay(sramc_host_trace_fd,
+                            "SRAMC_HOST_EDGE cycle=%0d request_index=%0d request_local_byte=%08x request_external_byte=%08x request_bank_d=%08x response_bank=%08x request_bank_q=%08x select=%b host_local=%08x host_phys=%08x host_word_sel=%0d host_word_sel_q=%0d port_rden=%b bank0_addr=%0d bank0_rden=%b bank0_cen=%b bank0_rdwen=%b bank0_raw=%0h bank1_addr=%0d bank1_rden=%b bank1_cen=%b bank1_rdwen=%b bank1_raw=%0h raw_host=%0h host_mux=%0h host_q=%0h mem_rdata=%0h pending_valid=%b response_offset=%0d response_lane=%0d response_bytes=%0d response_external=%08x",
+                            layer_cycles,
+                            sramc_host_read_count,
+                            local_addr+offset,
+                            external_addr+offset,
+                            dut.sram_top_i.host_sram_select_d,
+                            pending_bank,
+                            dut.sram_top_i.host_sram_select_q,
+                            dut.sram_top_i.i_select[2],
+                            dut.sram_top_i.host_local_address,
+                            dut.sram_top_i.SRAMC_i.host_phys_addr,
+                            dut.sram_top_i.SRAMC_i.host_word_sel,
+                            dut.sram_top_i.SRAMC_i.host_word_sel_shim_q,
+                            dut.sram_top_i.host_sramc_rden,
+                            dut.sram_top_i.SRAMC_i.addr_0,
+                            dut.sram_top_i.SRAMC_i.rden_0,
+                            dut.sram_top_i.SRAMC_i.cen_0,
+                            dut.sram_top_i.SRAMC_i.rdwen_0,
+                            dut.sram_top_i.SRAMC_i.outdata_0,
+                            dut.sram_top_i.SRAMC_i.addr_1,
+                            dut.sram_top_i.SRAMC_i.rden_1,
+                            dut.sram_top_i.SRAMC_i.cen_1,
+                            dut.sram_top_i.SRAMC_i.rdwen_1,
+                            dut.sram_top_i.SRAMC_i.outdata_1,
+                            dut.sram_top_i.host_sramc_data,
+                            dut.sram_top_i.host_sram_output,
+                            dut.sram_top_i.host_sram_output_q,
+                            beat_data,
+                            pending_read_valid,
+                            pending_offset,
+                            pending_lane_offset,
+                            pending_chunk_bytes,
+                            external_addr+pending_offset);
+                    end
                     if (pending_read_valid) begin
                         if (pending_lane_offset + pending_chunk_bytes > MEM_BYTES)
                             $fatal(1, "pending SRAM response exceeds host word: lane=%0d bytes=%0d", pending_lane_offset, pending_chunk_bytes);
@@ -395,6 +453,7 @@ module tb;
                     pending_offset = offset;
                     pending_lane_offset = lane_offset;
                     pending_chunk_bytes = chunk_bytes;
+                    pending_bank = dut.sram_top_i.host_sram_select_d;
                     pending_read_valid = 1'b1;
                     mem_rden = 1'b0;
                     if (trace_c_read)
@@ -413,6 +472,39 @@ module tb;
                 @(posedge clk);
                 #1ps;
                 beat_data = mem_rdata;
+                if (((local_addr & 32'hffff_0000) == 32'hd00c_0000) &&
+                    sramc_host_trace_fd != 0)
+                    $fdisplay(sramc_host_trace_fd,
+                        "SRAMC_HOST_DRAIN cycle=%0d request_local_byte=%08x request_bank_d=%08x response_bank=%08x request_bank_q=%08x select=%b host_local=%08x host_phys=%08x host_word_sel=%0d host_word_sel_q=%0d port_rden=%b bank0_addr=%0d bank0_rden=%b bank0_cen=%b bank0_rdwen=%b bank0_raw=%0h bank1_addr=%0d bank1_rden=%b bank1_cen=%b bank1_rdwen=%b bank1_raw=%0h raw_host=%0h host_mux=%0h host_q=%0h mem_rdata=%0h response_offset=%0d response_lane=%0d response_bytes=%0d response_external=%08x",
+                        layer_cycles,
+                        mem_addr,
+                        dut.sram_top_i.host_sram_select_d,
+                        pending_bank,
+                        dut.sram_top_i.host_sram_select_q,
+                        dut.sram_top_i.i_select[2],
+                        dut.sram_top_i.host_local_address,
+                        dut.sram_top_i.SRAMC_i.host_phys_addr,
+                        dut.sram_top_i.SRAMC_i.host_word_sel,
+                        dut.sram_top_i.SRAMC_i.host_word_sel_shim_q,
+                        dut.sram_top_i.host_sramc_rden,
+                        dut.sram_top_i.SRAMC_i.addr_0,
+                        dut.sram_top_i.SRAMC_i.rden_0,
+                        dut.sram_top_i.SRAMC_i.cen_0,
+                        dut.sram_top_i.SRAMC_i.rdwen_0,
+                        dut.sram_top_i.SRAMC_i.outdata_0,
+                        dut.sram_top_i.SRAMC_i.addr_1,
+                        dut.sram_top_i.SRAMC_i.rden_1,
+                        dut.sram_top_i.SRAMC_i.cen_1,
+                        dut.sram_top_i.SRAMC_i.rdwen_1,
+                        dut.sram_top_i.SRAMC_i.outdata_1,
+                        dut.sram_top_i.host_sramc_data,
+                        dut.sram_top_i.host_sram_output,
+                        dut.sram_top_i.host_sram_output_q,
+                        beat_data,
+                        pending_offset,
+                        pending_lane_offset,
+                        pending_chunk_bytes,
+                        external_addr+pending_offset);
                 if (pending_lane_offset + pending_chunk_bytes > MEM_BYTES ||
                     pending_offset + pending_chunk_bytes > byte_count)
                     $fatal(1, "final SRAM response tag is outside its transfer bounds");
@@ -631,6 +723,8 @@ module tb;
         psm_trace_fd = $fopen({artifact_dir, "/sramc-write-trace.txt"}, "w");
         if (psm_trace_fd == 0) $fatal(1, "cannot create SRAM C write trace");
         $fdisplay(psm_trace_fd, "# PSM_C_WRITE cycle=<n> index=<n> addr=<n> mask=<bits> data=<hex> ctx=<n> scan=<n>");
+        sramc_host_trace_fd = $fopen({artifact_dir, "/sramc-host-read-trace.txt"}, "w");
+        if (sramc_host_trace_fd == 0) $fatal(1, "cannot create SRAM C host read trace");
         fd = $fopen({artifact_dir, "/layer_window.txt"}, "w");
         if (fd == 0) $fatal(1, "cannot create layer window file");
         $fdisplay(fd, "%0.3f", layer_start_ns);
@@ -654,6 +748,18 @@ module tb;
         end
         measure_active = 1'b0;
         $fclose(psm_trace_fd);
+        $fclose(sramc_host_trace_fd);
+        sramc_host_trace_fd = 0;
+        sramc_dump_fd = $fopen({artifact_dir, "/sramc-bank0-final.mem"}, "w");
+        if (sramc_dump_fd == 0) $fatal(1, "cannot create SRAM C bank 0 dump");
+        for (idx = 0; idx < sauria_pkg::SRAMC_DEPTH; idx = idx + 1)
+            $fdisplay(sramc_dump_fd, "%0h", dut.sram_top_i.SRAMC_i.sram_0_i.mem[idx]);
+        $fclose(sramc_dump_fd);
+        sramc_dump_fd = $fopen({artifact_dir, "/sramc-bank1-final.mem"}, "w");
+        if (sramc_dump_fd == 0) $fatal(1, "cannot create SRAM C bank 1 dump");
+        for (idx = 0; idx < sauria_pkg::SRAMC_DEPTH; idx = idx + 1)
+            $fdisplay(sramc_dump_fd, "%0h", dut.sram_top_i.SRAMC_i.sram_1_i.mem[idx]);
+        $fclose(sramc_dump_fd);
         // layer_done is asserted only after the controller has completed its
         // final external write. End the activity window here, before golden
         // readback and reporting work in the testbench.
