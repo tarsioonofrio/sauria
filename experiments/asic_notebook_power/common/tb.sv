@@ -112,6 +112,8 @@ module tb;
     integer sramc_dump_fd = 0;
     integer sram_read_trace_fd = 0;
     integer ifmap_push_trace_fd = 0;
+    integer ifmap_push_slot_trace_fd = 0;
+    integer ifmap_fifo_pop_trace_fd = 0;
     integer sram_write_trace_fd = 0;
     integer ifmap_stage_trace_fd = 0;
     integer ifmap_stage_trace_id = 0;
@@ -123,6 +125,46 @@ module tb;
     integer sramb_pending_req_id = 0;
     integer srama_pending_valid = 0;
     integer sramb_pending_valid = 0;
+    integer srama_last_response_req_id = -1;
+    integer srama_last_response_addr = -1;
+    integer srama_last_response_bank0_addr = -1;
+    integer srama_last_response_bank1_addr = -1;
+    logic srama_last_response_select = 1'b0;
+    integer ifmap_sram_data_req_id_q = -1;
+    integer ifmap_sram_data_addr_q = -1;
+    integer ifmap_sram_data_bank0_addr_q = -1;
+    integer ifmap_sram_data_bank1_addr_q = -1;
+    logic ifmap_sram_data_select_q = 1'b0;
+    integer ifmap_sram_data_cycle_q = -1;
+    integer ifmap_sram_data_x_q = -1;
+    integer ifmap_sram_data_y_q = -1;
+    integer ifmap_sram_data_ch_q = -1;
+    integer ifmap_sram_data_til_x_q = -1;
+    integer ifmap_sram_data_til_y_q = -1;
+    integer ifmap_sram_data_idx_q = -1;
+    integer ifmap_sram_data_glob_woffs_q = -1;
+    integer ifmap_reg_tag_load_cycle [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_req_id [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_addr [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_bank0_addr [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_bank1_addr [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    logic ifmap_reg_tag_select [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_subword [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_x [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_y [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_ch [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_til_x [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_til_y [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_sram_idx [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_glob_woffs [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_loc_woffs [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_woffs_init [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_shift_idx [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_read_ptr [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_valid [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_finalpush [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_reg_tag_update [0:sauria_pkg::Y-1][0:sauria_pkg::M-1];
+    integer ifmap_lane_push_ordinal [0:sauria_pkg::Y-1];
     logic srama_pending_select = 1'b0;
     logic sramb_pending_select = 1'b0;
     logic [sauria_pkg::ADRA_W-1:0] srama_pending_addr = '0;
@@ -310,9 +352,32 @@ module tb;
         if (!measure_active) begin
             srama_pending_valid = 0;
             sramb_pending_valid = 0;
+            srama_last_response_req_id = -1;
+            srama_last_response_addr = -1;
+            srama_last_response_bank0_addr = -1;
+            srama_last_response_bank1_addr = -1;
+            srama_last_response_select = 1'b0;
+            ifmap_sram_data_req_id_q = -1;
+            ifmap_sram_data_addr_q = -1;
+            ifmap_sram_data_bank0_addr_q = -1;
+            ifmap_sram_data_bank1_addr_q = -1;
+            ifmap_sram_data_select_q = 1'b0;
+            ifmap_sram_data_cycle_q = -1;
+            ifmap_sram_data_x_q = -1;
+            ifmap_sram_data_y_q = -1;
+            ifmap_sram_data_ch_q = -1;
+            ifmap_sram_data_til_x_q = -1;
+            ifmap_sram_data_til_y_q = -1;
+            ifmap_sram_data_idx_q = -1;
+            ifmap_sram_data_glob_woffs_q = -1;
         end else begin
             if (sram_read_trace_fd != 0) begin
                 if (srama_pending_valid) begin
+                    srama_last_response_req_id = srama_pending_req_id;
+                    srama_last_response_addr = srama_pending_addr;
+                    srama_last_response_bank0_addr = srama_pending_bank0_addr;
+                    srama_last_response_bank1_addr = srama_pending_bank1_addr;
+                    srama_last_response_select = srama_pending_select;
                     $fdisplay(sram_read_trace_fd,
                         "SRAM_READ_RSP cycle=%0d mem=A req_id=%0d req_select=%b req_addr=%0d req_bank0_addr=%0d req_bank1_addr=%0d raw_bank0=%0h raw_bank1=%0h raw_req_bank=%0h accel_mux_current=%0h top_q_current=%0h core_data_current=%0h",
                         sram_trace_cycle, srama_pending_req_id, srama_pending_select,
@@ -403,6 +468,22 @@ module tb;
                 end
 
                 if (dut.sauria_logic_i.ifmap_feeder_i.pipeline_regs_en) begin
+                    // Sidecar for sram_data_q: capture the response identity and
+                    // live index state in the same edge as the feeder data FF.
+                    // The next manager register load consumes these tagged bits.
+                    ifmap_sram_data_req_id_q <= srama_last_response_req_id;
+                    ifmap_sram_data_addr_q <= srama_last_response_addr;
+                    ifmap_sram_data_bank0_addr_q <= srama_last_response_bank0_addr;
+                    ifmap_sram_data_bank1_addr_q <= srama_last_response_bank1_addr;
+                    ifmap_sram_data_select_q <= srama_last_response_select;
+                    ifmap_sram_data_cycle_q <= sram_trace_cycle;
+                    ifmap_sram_data_x_q <= dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.x_idx;
+                    ifmap_sram_data_y_q <= dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.y_idx;
+                    ifmap_sram_data_ch_q <= dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.ch_idx;
+                    ifmap_sram_data_til_x_q <= dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_x_idx;
+                    ifmap_sram_data_til_y_q <= dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_y_idx;
+                    ifmap_sram_data_idx_q <= dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.sram_idx_q;
+                    ifmap_sram_data_glob_woffs_q <= dut.sauria_logic_i.ifmap_feeder_i.glob_woffs;
                     $fdisplay(sram_read_trace_fd,
                         "IFMAP_FEED_SAMPLE cycle=%0d addr=%0d core_data_sampled=%0h data_q_pre=%0h feeder_mux_pre=%0h x=%0d y=%0d ch=%0d til_x=%0d til_y=%0d sram_idx=%0d glob_woffs=%0d xov=%b valid=%b finalpush=%b full=%b stall=%b update=%b",
                         sram_trace_cycle,
@@ -466,6 +547,115 @@ module tb;
                         dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.o_stall,
                         dut.sauria_logic_i.ifmap_feeder_i.fifo_full_any,
                         dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_full);
+                end
+
+                if (!rstn || !measure_active) begin
+                    ifmap_lane_push_ordinal[trace_lane] = 0;
+                    for (integer tag_slot = 0; tag_slot < sauria_pkg::M; tag_slot++) begin
+                        ifmap_reg_tag_load_cycle[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_req_id[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_addr[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_bank0_addr[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_bank1_addr[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_select[trace_lane][tag_slot] = 1'b0;
+                        ifmap_reg_tag_subword[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_x[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_y[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_ch[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_til_x[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_til_y[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_sram_idx[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_glob_woffs[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_loc_woffs[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_woffs_init[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_shift_idx[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_read_ptr[trace_lane][tag_slot] = -1;
+                        ifmap_reg_tag_valid[trace_lane][tag_slot] = 0;
+                        ifmap_reg_tag_finalpush[trace_lane][tag_slot] = 0;
+                        ifmap_reg_tag_update[trace_lane][tag_slot] = 0;
+                    end
+                end else begin
+                    for (integer tag_slot = 0; tag_slot < sauria_pkg::M; tag_slot++) begin
+                        if (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.regs_en_d[tag_slot]) begin
+                            ifmap_reg_tag_load_cycle[trace_lane][tag_slot] <= ifmap_sram_data_cycle_q;
+                            ifmap_reg_tag_req_id[trace_lane][tag_slot] <= ifmap_sram_data_req_id_q;
+                            ifmap_reg_tag_addr[trace_lane][tag_slot] <= ifmap_sram_data_addr_q;
+                            ifmap_reg_tag_bank0_addr[trace_lane][tag_slot] <= ifmap_sram_data_bank0_addr_q;
+                            ifmap_reg_tag_bank1_addr[trace_lane][tag_slot] <= ifmap_sram_data_bank1_addr_q;
+                            ifmap_reg_tag_select[trace_lane][tag_slot] <= ifmap_sram_data_select_q;
+                            ifmap_reg_tag_subword[trace_lane][tag_slot] <= dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.mux_control_array[tag_slot];
+                            ifmap_reg_tag_x[trace_lane][tag_slot] <= ifmap_sram_data_x_q;
+                            ifmap_reg_tag_y[trace_lane][tag_slot] <= ifmap_sram_data_y_q;
+                            ifmap_reg_tag_ch[trace_lane][tag_slot] <= ifmap_sram_data_ch_q;
+                            ifmap_reg_tag_til_x[trace_lane][tag_slot] <= ifmap_sram_data_til_x_q;
+                            ifmap_reg_tag_til_y[trace_lane][tag_slot] <= ifmap_sram_data_til_y_q;
+                            ifmap_reg_tag_sram_idx[trace_lane][tag_slot] <= ifmap_sram_data_idx_q;
+                            ifmap_reg_tag_glob_woffs[trace_lane][tag_slot] <= ifmap_sram_data_glob_woffs_q;
+                            ifmap_reg_tag_loc_woffs[trace_lane][tag_slot] <= dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_loc_woffs;
+                            ifmap_reg_tag_woffs_init[trace_lane][tag_slot] <= dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.woffs_init_q;
+                            ifmap_reg_tag_shift_idx[trace_lane][tag_slot] <= dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.shift_idx_cnt_q;
+                            ifmap_reg_tag_read_ptr[trace_lane][tag_slot] <= dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.read_ptr_q;
+                            ifmap_reg_tag_valid[trace_lane][tag_slot] <= dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_valid_data;
+                            ifmap_reg_tag_finalpush[trace_lane][tag_slot] <= dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_finalpush;
+                            ifmap_reg_tag_update[trace_lane][tag_slot] <= dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_update;
+                        end
+                    end
+
+                    if (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.fifo_push &&
+                        !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.fifo_full &&
+                        ifmap_push_slot_trace_fd != 0) begin
+                        for (integer tag_slot = 0; tag_slot < sauria_pkg::M; tag_slot++)
+                            $fdisplay(ifmap_push_slot_trace_fd,
+                                "IFMAP_FIFO_PUSH_SLOT cycle=%0d push=%0d lane=%0d slot=%0d data=%0h load_cycle=%0d src_req=%0d src_addr=%0d src_select=%b src_bank0=%0d src_bank1=%0d subword=%0d x=%0d y=%0d ch=%0d til_x=%0d til_y=%0d sram_idx=%0d glob_woffs=%0d loc_woffs=%0d woffs_init=%0d shift_idx=%0d read_ptr=%0d valid=%0d finalpush=%0d update=%0d",
+                                sram_trace_cycle, ifmap_lane_push_ordinal[trace_lane], trace_lane, tag_slot,
+                                dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.regs_q[tag_slot],
+                                ifmap_reg_tag_load_cycle[trace_lane][tag_slot],
+                                ifmap_reg_tag_req_id[trace_lane][tag_slot],
+                                ifmap_reg_tag_addr[trace_lane][tag_slot],
+                                ifmap_reg_tag_select[trace_lane][tag_slot],
+                                ifmap_reg_tag_bank0_addr[trace_lane][tag_slot],
+                                ifmap_reg_tag_bank1_addr[trace_lane][tag_slot],
+                                ifmap_reg_tag_subword[trace_lane][tag_slot],
+                                ifmap_reg_tag_x[trace_lane][tag_slot],
+                                ifmap_reg_tag_y[trace_lane][tag_slot],
+                                ifmap_reg_tag_ch[trace_lane][tag_slot],
+                                ifmap_reg_tag_til_x[trace_lane][tag_slot],
+                                ifmap_reg_tag_til_y[trace_lane][tag_slot],
+                                ifmap_reg_tag_sram_idx[trace_lane][tag_slot],
+                                ifmap_reg_tag_glob_woffs[trace_lane][tag_slot],
+                                ifmap_reg_tag_loc_woffs[trace_lane][tag_slot],
+                                ifmap_reg_tag_woffs_init[trace_lane][tag_slot],
+                                ifmap_reg_tag_shift_idx[trace_lane][tag_slot],
+                                ifmap_reg_tag_read_ptr[trace_lane][tag_slot],
+                                ifmap_reg_tag_valid[trace_lane][tag_slot],
+                                ifmap_reg_tag_finalpush[trace_lane][tag_slot],
+                                ifmap_reg_tag_update[trace_lane][tag_slot]);
+                        ifmap_lane_push_ordinal[trace_lane] = ifmap_lane_push_ordinal[trace_lane] + 1;
+                    end
+
+                    if (ifmap_fifo_pop_trace_fd != 0 &&
+                        (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop ||
+                         dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_clearfifo))
+                        $fdisplay(ifmap_fifo_pop_trace_fd,
+                            "IFMAP_FIFO_FLOW cycle=%0d lane=%0d clear=%b push=%b pop=%b pop_valid=%b pop_en_q=%b pipeline_en=%b empty=%b empty_q2=%b full=%b ptr=%0d out_woffs=%0d fifo_dout=%0h fifo_o_data=%0h lane_dout=%0h sa_input=%0h",
+                            sram_trace_cycle, trace_lane,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_clearfifo,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.fifo_push &&
+                                !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.fifo_full,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
+                                !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.pop_en_q,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_pipeline_en,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_full,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_i.ptr_q,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_i.out_woffs,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_dout,
+                            dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.o_data,
+                            dut.sauria_logic_i.ifmap_feeder_i.lane_dout[trace_lane],
+                            dut.sauria_logic_i.ifmap_feeder_i.o_a_arr[trace_lane]);
                 end
             end
         end
@@ -1034,6 +1224,10 @@ module tb;
         if (sram_read_trace_fd == 0) $fatal(1, "cannot create accelerator SRAM read trace");
         ifmap_push_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-push-trace.txt"}, "w");
         if (ifmap_push_trace_fd == 0) $fatal(1, "cannot create IFMAP FIFO push trace");
+        ifmap_push_slot_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-push-slot-trace.txt"}, "w");
+        if (ifmap_push_slot_trace_fd == 0) $fatal(1, "cannot create tagged IFMAP FIFO push trace");
+        ifmap_fifo_pop_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-pop-trace.txt"}, "w");
+        if (ifmap_fifo_pop_trace_fd == 0) $fatal(1, "cannot create IFMAP FIFO pop trace");
         sram_write_trace_fd = $fopen({artifact_dir, "/accelerator-sram-write-trace.txt"}, "w");
         if (sram_write_trace_fd == 0) $fatal(1, "cannot create physical SRAM write trace");
         ifmap_stage_trace_fd = $fopen({artifact_dir, "/ifmap-stage-trace.txt"}, "w");
@@ -1064,10 +1258,14 @@ module tb;
         $fclose(sramc_host_trace_fd);
         $fclose(sram_read_trace_fd);
         $fclose(ifmap_push_trace_fd);
+        $fclose(ifmap_push_slot_trace_fd);
+        $fclose(ifmap_fifo_pop_trace_fd);
         $fclose(sram_write_trace_fd);
         $fclose(ifmap_stage_trace_fd);
         sram_read_trace_fd = 0;
         ifmap_push_trace_fd = 0;
+        ifmap_push_slot_trace_fd = 0;
+        ifmap_fifo_pop_trace_fd = 0;
         sram_write_trace_fd = 0;
         ifmap_stage_trace_fd = 0;
         sramc_host_trace_fd = 0;
