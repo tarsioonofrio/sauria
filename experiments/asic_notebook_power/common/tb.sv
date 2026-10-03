@@ -114,6 +114,7 @@ module tb;
     integer ifmap_push_trace_fd = 0;
     integer ifmap_push_slot_trace_fd = 0;
     integer ifmap_fifo_pop_trace_fd = 0;
+    integer ifmap_dm_trace_fd = 0;
     integer sram_write_trace_fd = 0;
     integer ifmap_stage_trace_fd = 0;
     integer ifmap_stage_trace_id = 0;
@@ -623,6 +624,58 @@ module tb;
     genvar trace_lane;
     generate
         for (trace_lane = 0; trace_lane < sauria_pkg::Y; trace_lane = trace_lane + 1) begin : ifmap_push_trace
+            // Narrow diagnostic window for the first problematic activation
+            // channel/word boundary. Capture the manager's selection mask,
+            // accepted register slots, and SRAM source together so skipped
+            // subwords can be distinguished from tag/retiming errors.
+            always @(posedge clk) begin
+                if (measure_active && ifmap_dm_trace_fd != 0 && trace_lane < 2 &&
+                    ifmap_sram_data_ch_q == 180 &&
+                    ifmap_sram_data_idx_q >= 180 && ifmap_sram_data_idx_q <= 210) begin
+                    $fdisplay(ifmap_dm_trace_fd,
+                        "IFMAP_DM_SELECT cycle=%0d lane=%0d req=%0d addr=%0d bank0=%0d bank1=%0d select=%b src_cycle=%0d src_x=%0d src_y=%0d src_ch=%0d src_idx=%0d src_woffs=%0d sram_data=%0h elements=%0h feeder_en=%b update=%b valid=%b pipeline_regs_en=%b stall=%b fifo_full=%b fifo_push=%b read_ptr_q=%0d read_ptr_d=%0d shift_idx_q=%0d shift_idx_d=%0d woffs_init_q=%0d woffs_init_d=%0d dil_mask=%0h elm_number=%0d n_free_regs=%0d elm_number_sat=%0d regs_used_idx=%0d new_active_idx=%0d regs_active_q=%0h regs_active_new=%0h regs_en_d=%0h target=%0h mux=%0h regs_d=%0h",
+                        sram_trace_cycle, trace_lane,
+                        ifmap_sram_data_req_id_q,
+                        ifmap_sram_data_addr_q,
+                        ifmap_sram_data_bank0_addr_q,
+                        ifmap_sram_data_bank1_addr_q,
+                        ifmap_sram_data_select_q,
+                        ifmap_sram_data_cycle_q,
+                        ifmap_sram_data_x_q,
+                        ifmap_sram_data_y_q,
+                        ifmap_sram_data_ch_q,
+                        ifmap_sram_data_idx_q,
+                        ifmap_sram_data_glob_woffs_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_sram_data,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.sram_elements,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_feeder_en,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_update,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_valid_data,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.pipeline_regs_en,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.o_stall,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_full,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.fifo_push,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.read_ptr_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.read_ptr_d,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.shift_idx_cnt_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.shift_idx_cnt_d,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.woffs_init_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.woffs_init_d,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.final_dil_pat,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.elm_number,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.n_free_regs,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.elm_number_sat,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.regs_used_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.new_active_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.regs_active_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.regs_active_new,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.regs_en_d,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.target_array,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.mux_control_array,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.regs_d);
+                end
+            end
+
             always @(posedge clk) begin
                 if (measure_active && ifmap_push_trace_fd != 0 &&
                     (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.fifo_push ||
@@ -1599,6 +1652,8 @@ module tb;
         if (ifmap_push_slot_trace_fd == 0) $fatal(1, "cannot create tagged IFMAP FIFO push trace");
         ifmap_fifo_pop_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-pop-trace.txt"}, "w");
         if (ifmap_fifo_pop_trace_fd == 0) $fatal(1, "cannot create IFMAP FIFO pop trace");
+        ifmap_dm_trace_fd = $fopen({artifact_dir, "/ifmap-dm-select-trace.txt"}, "w");
+        if (ifmap_dm_trace_fd == 0) $fatal(1, "cannot create IFMAP data-manager selection trace");
         sram_write_trace_fd = $fopen({artifact_dir, "/accelerator-sram-write-trace.txt"}, "w");
         if (sram_write_trace_fd == 0) $fatal(1, "cannot create physical SRAM write trace");
         ifmap_stage_trace_fd = $fopen({artifact_dir, "/ifmap-stage-trace.txt"}, "w");
@@ -1631,6 +1686,7 @@ module tb;
         $fclose(ifmap_push_trace_fd);
         $fclose(ifmap_push_slot_trace_fd);
         $fclose(ifmap_fifo_pop_trace_fd);
+        $fclose(ifmap_dm_trace_fd);
         $fclose(sram_write_trace_fd);
         $fclose(ifmap_stage_trace_fd);
         sram_read_trace_fd = 0;
