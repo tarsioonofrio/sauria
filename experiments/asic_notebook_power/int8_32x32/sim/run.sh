@@ -81,28 +81,38 @@ for case_name in "${case_list[@]}"; do
     )
     if [[ "$SIM_STAGE" != gate ]]; then
         (
-            cd "$SIM_ROOT"
-            xrun -f args.txt "${include_args[@]}" "${define_args[@]}" -define XRUN \
+            cd "$CASE_ROOT/rtl"
+            xrun -f "$SIM_ROOT/args.txt" "${include_args[@]}" "${define_args[@]}" -define XRUN \
                 "${rtl_files[@]}" "$TB" -run -exit \
                 -l "$CASE_ROOT/rtl-xrun.log" "${PLUSARGS[@]}" \
-                "+ARTIFACT_DIR=$CASE_ROOT/rtl" "+ACTIVITY_SHM=$CASE_ROOT/rtl.dut.shm"
+                "+ARTIFACT_DIR=$CASE_ROOT/rtl"
         )
-        [[ -s "$CASE_ROOT/rtl.dut.shm" ]] || { echo "$case_name RTL run did not create SHM" >&2; exit 3; }
+        [[ -e "$CASE_ROOT/rtl/dut.shm" ]] || { echo "$case_name RTL run did not create SHM" >&2; exit 3; }
         [[ -s "$CASE_ROOT/rtl/layer_window.txt" ]] || { echo "$case_name RTL run did not create layer window" >&2; exit 3; }
         cp "$CASE_ROOT/rtl/layer_window.txt" "$CASE_ROOT/rtl-layer-window.txt"
         grep -q 'NOTEBOOK_LAYER_PASS' "$CASE_ROOT/rtl-xrun.log" || { echo "$case_name RTL full-layer golden check missing" >&2; exit 4; }
     fi
 
     if [[ "$SIM_STAGE" != rtl ]]; then
+        GATE_SDF="$RESULTS/gate_level/sauria_asic_top_analysis_view_0p90v_25c_captyp_nominal.sdf"
+        [[ -s "$GATE_SDF" ]] || { echo "Missing nominal gate SDF: $GATE_SDF" >&2; exit 5; }
+        cat > "$CASE_ROOT/gate-sdf.cmd" <<SDF
+SDF_FILE = $GATE_SDF,
+LOG_FILE = "$CASE_ROOT/gate/sdf_log.log",
+SCOPE = tb.dut;
+MTM_CONTROL = "MAXIMUM",
+SCALE_FACTORS = "1.0:1.0:1.0",
+SCALE_TYPE = "FROM_MAXIMUM";
+SDF
         (
-            cd "$SIM_ROOT"
-            xrun -f args.txt -sdf_cmd_file sdf_cmd.cmd -maxdelays \
+            cd "$CASE_ROOT/gate"
+            xrun -f "$SIM_ROOT/args.txt" -sdf_cmd_file "$CASE_ROOT/gate-sdf.cmd" -maxdelays \
                 "${include_args[@]}" "${define_args[@]}" -define XRUN -define POWER_ACTIVITY \
                 "$CELL_MODELS" "$RAM_RTL" "$GATE_NETLIST" "$TB" -run -exit \
                 -l "$CASE_ROOT/gate-xrun.log" "${PLUSARGS[@]}" \
-                "+ARTIFACT_DIR=$CASE_ROOT/gate" "+ACTIVITY_SHM=$CASE_ROOT/gate.dut.shm"
+                "+ARTIFACT_DIR=$CASE_ROOT/gate"
         )
-        [[ -s "$CASE_ROOT/gate.dut.shm" ]] || { echo "$case_name gate run did not create SHM" >&2; exit 5; }
+        [[ -e "$CASE_ROOT/gate/dut.shm" ]] || { echo "$case_name gate run did not create SHM" >&2; exit 5; }
         [[ -s "$CASE_ROOT/gate/layer_window.txt" ]] || { echo "$case_name gate run did not create layer window" >&2; exit 5; }
         cp "$CASE_ROOT/gate/layer_window.txt" "$CASE_ROOT/gate-layer-window.txt"
         grep -q 'NOTEBOOK_LAYER_PASS' "$CASE_ROOT/gate-xrun.log" || { echo "$case_name gate full-layer golden check missing" >&2; exit 6; }

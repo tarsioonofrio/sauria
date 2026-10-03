@@ -12,7 +12,7 @@ if {[info exists ::env(LOGICAL_RESULTS_ROOT)]} {
     set RESULTS_ROOT [file join $CONFIG_ROOT logical results]
 }
 set DB_FILE [file join $RESULTS_ROOT gate_level sauria_asic_top_logic_mapped.db]
-set SHM [file join $SIM_CASE gate.dut.shm]
+set SHM [file join $SIM_CASE gate dut.shm]
 set WINDOW_FILE [file join $SIM_CASE gate-layer-window.txt]
 if {![file exists $DB_FILE]} { error "Missing Genus database: $DB_FILE" }
 if {![file exists $SHM]} { error "Missing Xcelium activity database: $SHM" }

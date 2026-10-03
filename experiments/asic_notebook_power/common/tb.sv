@@ -109,7 +109,6 @@ module tb;
     integer unsigned config_data;
     string vector_dir;
     string artifact_dir;
-    string activity_path;
     logic [31:0] checksum;
     logic [MEM_W-1:0] beat_data;
     logic [MEM_W-1:0] beat_mask;
@@ -171,8 +170,9 @@ module tb;
 
 `ifdef XRUN
     initial begin
-        if (!$value$plusargs("ACTIVITY_SHM=%s", activity_path)) $fatal(1, "missing ACTIVITY_SHM");
-        $shm_open(activity_path);
+        // Xcelium 23.03 requires a literal argument to $shm_open. The RTL and
+        // gate runners use separate per-stage working directories.
+        $shm_open("dut.shm");
         $shm_probe(tb.dut, "ASM");
     end
 `endif
