@@ -130,6 +130,26 @@ module tb;
     integer srama_last_response_bank0_addr = -1;
     integer srama_last_response_bank1_addr = -1;
     logic srama_last_response_select = 1'b0;
+    // Sidecar tags mirror the two registered SRAM data stages that feed the
+    // IFMAP feeder: inferred SRAM outdata, then sram_top's srama_output_q.
+    // Keep bank tags separately because i_select chooses which bank's held
+    // output is sampled by sram_top.
+    integer srama_bank0_tag_req_id_q = -1;
+    integer srama_bank0_tag_addr_q = -1;
+    integer srama_bank0_tag_bank0_addr_q = -1;
+    integer srama_bank0_tag_bank1_addr_q = -1;
+    logic srama_bank0_tag_select_q = 1'b0;
+    integer srama_bank1_tag_req_id_q = -1;
+    integer srama_bank1_tag_addr_q = -1;
+    integer srama_bank1_tag_bank0_addr_q = -1;
+    integer srama_bank1_tag_bank1_addr_q = -1;
+    logic srama_bank1_tag_select_q = 1'b0;
+    integer srama_top_tag_req_id_q = -1;
+    integer srama_top_tag_addr_q = -1;
+    integer srama_top_tag_bank0_addr_q = -1;
+    integer srama_top_tag_bank1_addr_q = -1;
+    logic srama_top_tag_select_q = 1'b0;
+    integer srama_top_tag_cycle_q = -1;
     integer ifmap_sram_data_req_id_q = -1;
     integer ifmap_sram_data_addr_q = -1;
     integer ifmap_sram_data_bank0_addr_q = -1;
@@ -357,6 +377,22 @@ module tb;
             srama_last_response_bank0_addr = -1;
             srama_last_response_bank1_addr = -1;
             srama_last_response_select = 1'b0;
+            srama_bank0_tag_req_id_q = -1;
+            srama_bank0_tag_addr_q = -1;
+            srama_bank0_tag_bank0_addr_q = -1;
+            srama_bank0_tag_bank1_addr_q = -1;
+            srama_bank0_tag_select_q = 1'b0;
+            srama_bank1_tag_req_id_q = -1;
+            srama_bank1_tag_addr_q = -1;
+            srama_bank1_tag_bank0_addr_q = -1;
+            srama_bank1_tag_bank1_addr_q = -1;
+            srama_bank1_tag_select_q = 1'b0;
+            srama_top_tag_req_id_q = -1;
+            srama_top_tag_addr_q = -1;
+            srama_top_tag_bank0_addr_q = -1;
+            srama_top_tag_bank1_addr_q = -1;
+            srama_top_tag_select_q = 1'b0;
+            srama_top_tag_cycle_q = -1;
             ifmap_sram_data_req_id_q = -1;
             ifmap_sram_data_addr_q = -1;
             ifmap_sram_data_bank0_addr_q = -1;
@@ -436,6 +472,20 @@ module tb;
                     srama_pending_addr = dut.sauria_logic_i.o_srama_addr;
                     srama_pending_bank0_addr = dut.sram_top_i.SRAMA_i.addr_0;
                     srama_pending_bank1_addr = dut.sram_top_i.SRAMA_i.addr_1;
+                    if (dut.sram_top_i.SRAMA_i.rden_0 && !dut.sram_top_i.SRAMA_i.cen_0 && dut.sram_top_i.SRAMA_i.rdwen_0) begin
+                        srama_bank0_tag_req_id_q <= srama_read_req_id;
+                        srama_bank0_tag_addr_q <= dut.sauria_logic_i.o_srama_addr;
+                        srama_bank0_tag_bank0_addr_q <= dut.sram_top_i.SRAMA_i.addr_0;
+                        srama_bank0_tag_bank1_addr_q <= dut.sram_top_i.SRAMA_i.addr_1;
+                        srama_bank0_tag_select_q <= dut.sram_top_i.i_select[0];
+                    end
+                    if (dut.sram_top_i.SRAMA_i.rden_1 && !dut.sram_top_i.SRAMA_i.cen_1 && dut.sram_top_i.SRAMA_i.rdwen_1) begin
+                        srama_bank1_tag_req_id_q <= srama_read_req_id;
+                        srama_bank1_tag_addr_q <= dut.sauria_logic_i.o_srama_addr;
+                        srama_bank1_tag_bank0_addr_q <= dut.sram_top_i.SRAMA_i.addr_0;
+                        srama_bank1_tag_bank1_addr_q <= dut.sram_top_i.SRAMA_i.addr_1;
+                        srama_bank1_tag_select_q <= dut.sram_top_i.i_select[0];
+                    end
                 end
                 if ((dut.sram_top_i.SRAMB_i.rden_0 && !dut.sram_top_i.SRAMB_i.cen_0 && dut.sram_top_i.SRAMB_i.rdwen_0) ||
                     (dut.sram_top_i.SRAMB_i.rden_1 && !dut.sram_top_i.SRAMB_i.cen_1 && dut.sram_top_i.SRAMB_i.rdwen_1)) begin
@@ -468,14 +518,14 @@ module tb;
                 end
 
                 if (dut.sauria_logic_i.ifmap_feeder_i.pipeline_regs_en) begin
-                    // Sidecar for sram_data_q: capture the response identity and
-                    // live index state in the same edge as the feeder data FF.
-                    // The next manager register load consumes these tagged bits.
-                    ifmap_sram_data_req_id_q <= srama_last_response_req_id;
-                    ifmap_sram_data_addr_q <= srama_last_response_addr;
-                    ifmap_sram_data_bank0_addr_q <= srama_last_response_bank0_addr;
-                    ifmap_sram_data_bank1_addr_q <= srama_last_response_bank1_addr;
-                    ifmap_sram_data_select_q <= srama_last_response_select;
+                    // i_srama_data is sram_top's already-registered output_q at
+                    // this edge. Pair it with that same Q-stage tag, rather
+                    // than the newly observed raw SRAM response/request.
+                    ifmap_sram_data_req_id_q <= srama_top_tag_req_id_q;
+                    ifmap_sram_data_addr_q <= srama_top_tag_addr_q;
+                    ifmap_sram_data_bank0_addr_q <= srama_top_tag_bank0_addr_q;
+                    ifmap_sram_data_bank1_addr_q <= srama_top_tag_bank1_addr_q;
+                    ifmap_sram_data_select_q <= srama_top_tag_select_q;
                     ifmap_sram_data_cycle_q <= sram_trace_cycle;
                     ifmap_sram_data_x_q <= dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.x_idx;
                     ifmap_sram_data_y_q <= dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.y_idx;
@@ -485,8 +535,14 @@ module tb;
                     ifmap_sram_data_idx_q <= dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.sram_idx_q;
                     ifmap_sram_data_glob_woffs_q <= dut.sauria_logic_i.ifmap_feeder_i.glob_woffs;
                     $fdisplay(sram_read_trace_fd,
-                        "IFMAP_FEED_SAMPLE cycle=%0d addr=%0d core_data_sampled=%0h data_q_pre=%0h feeder_mux_pre=%0h x=%0d y=%0d ch=%0d til_x=%0d til_y=%0d sram_idx=%0d glob_woffs=%0d xov=%b valid=%b finalpush=%b full=%b stall=%b update=%b",
+                        "IFMAP_FEED_SAMPLE cycle=%0d core_src_req=%0d core_src_addr=%0d core_src_select=%b core_src_bank0=%0d core_src_bank1=%0d core_tag_cycle=%0d addr_live=%0d core_data_sampled=%0h data_q_pre=%0h feeder_mux_pre=%0h x_live=%0d y_live=%0d ch_live=%0d til_x_live=%0d til_y_live=%0d sram_idx_live=%0d glob_woffs_live=%0d xov=%b valid=%b finalpush=%b full=%b stall=%b update=%b",
                         sram_trace_cycle,
+                        srama_top_tag_req_id_q,
+                        srama_top_tag_addr_q,
+                        srama_top_tag_select_q,
+                        srama_top_tag_bank0_addr_q,
+                        srama_top_tag_bank1_addr_q,
+                        srama_top_tag_cycle_q,
                         dut.sauria_logic_i.o_srama_addr,
                         dut.sauria_logic_i.i_srama_data,
                         dut.sauria_logic_i.ifmap_feeder_i.sram_data_q,
@@ -504,6 +560,27 @@ module tb;
                         dut.sauria_logic_i.ifmap_feeder_i.fifo_full_any,
                         dut.sauria_logic_i.ifmap_feeder_i.stall_any,
                         dut.sauria_logic_i.ifmap_feeder_i.feeders_update);
+                end
+
+                // sram_top captures its combinational bank mux into
+                // srama_output_q on i_srama_rden. At this edge the bank's Q
+                // tag is still the tag of the data sampled by that register;
+                // nonblocking updates above advance each bank tag afterwards.
+                if (dut.sauria_logic_i.o_srama_rden) begin
+                    if (dut.sram_top_i.i_select[0]) begin
+                        srama_top_tag_req_id_q <= srama_bank0_tag_req_id_q;
+                        srama_top_tag_addr_q <= srama_bank0_tag_addr_q;
+                        srama_top_tag_bank0_addr_q <= srama_bank0_tag_bank0_addr_q;
+                        srama_top_tag_bank1_addr_q <= srama_bank0_tag_bank1_addr_q;
+                        srama_top_tag_select_q <= srama_bank0_tag_select_q;
+                    end else begin
+                        srama_top_tag_req_id_q <= srama_bank1_tag_req_id_q;
+                        srama_top_tag_addr_q <= srama_bank1_tag_addr_q;
+                        srama_top_tag_bank0_addr_q <= srama_bank1_tag_bank0_addr_q;
+                        srama_top_tag_bank1_addr_q <= srama_bank1_tag_bank1_addr_q;
+                        srama_top_tag_select_q <= srama_bank1_tag_select_q;
+                    end
+                    srama_top_tag_cycle_q <= sram_trace_cycle;
                 end
             end
         end
