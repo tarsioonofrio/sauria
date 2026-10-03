@@ -107,6 +107,7 @@ module tb;
     integer fd;
     integer psm_trace_fd = 0;
     integer psm_trace_count = 0;
+    integer dma_c_read_debug_count = 0;
     integer idx;
     integer byte_idx;
     integer beat_idx;
@@ -139,13 +140,18 @@ module tb;
         if (measure_active && dut.sauria_logic_i.psm_top_i.o_sramc_wren && psm_trace_fd != 0) begin
             psm_trace_count = psm_trace_count + 1;
             $fdisplay(psm_trace_fd,
-                "PSM_C_WRITE cycle=%0d index=%0d addr=%0d mask=%b data=%0h ctx=%0d scan=%0d",
+                "PSM_C_WRITE cycle=%0d index=%0d addr=%0d mask=%b data=%0h ctx=%0d scan=%0d select=%b bank0_addr=%0d bank0_wren=%b bank1_addr=%0d bank1_wren=%b",
                 layer_cycles, psm_trace_count,
                 dut.sauria_logic_i.psm_top_i.o_sramc_addr,
                 dut.sauria_logic_i.psm_top_i.o_sramc_wmask,
                 dut.sauria_logic_i.psm_top_i.o_sramc_wdata,
                 dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.ctx_cnt,
-                dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.scan_cnt);
+                dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.scan_cnt,
+                dut.sram_top_i.i_select[2],
+                dut.sram_top_i.SRAMC_i.addr_0,
+                dut.sram_top_i.SRAMC_i.wren_0,
+                dut.sram_top_i.SRAMC_i.addr_1,
+                dut.sram_top_i.SRAMC_i.wren_1);
         end
     end
 
@@ -254,6 +260,7 @@ module tb;
         integer dram_beats;
         integer sram_beats;
         integer beat_cycles;
+        integer trace_c_read;
         begin
             if (byte_count == 0) $fatal(1, "DMA command has zero BTT");
             copy_from_dram = ((reader_addr & 32'hf000_0000) != SAURIA_DMA_REGION);
@@ -343,12 +350,22 @@ module tb;
                     @(negedge clk);
                     mem_addr = (local_addr + offset) & ~(MEM_BYTES-1);
                     mem_rden = 1'b1;
+                    trace_c_read = ((local_addr & 32'hffff_0000) == 32'hd00c_0000) &&
+                                   (dma_c_read_debug_count < 3);
+                    if (trace_c_read) begin
+                        dma_c_read_debug_count = dma_c_read_debug_count + 1;
+                        $display("DMA_C_READ_REQ n=%0d dram_addr=%08x mem_addr=%08x local=%08x bank_d=%08x bank_q=%08x local_addr=%08x select=%b c_addr0=%08x c_addr1=%08x", dma_c_read_debug_count, external_addr+offset, mem_addr, local_addr+offset, dut.sram_top_i.host_sram_select_d, dut.sram_top_i.host_sram_select_q, dut.sram_top_i.host_local_address, dut.sram_top_i.i_select[2], dut.sram_top_i.SRAMC_i.addr_0, dut.sram_top_i.SRAMC_i.addr_1);
+                    end
                     @(posedge clk);
                     #1ps;
                     mem_rden = 1'b0;
+                    if (trace_c_read)
+                        $display("DMA_C_READ_EDGE1 n=%0d rdata=%0h c_host=%0h bank_d=%08x bank_q=%08x select=%b", dma_c_read_debug_count, mem_rdata, dut.sram_top_i.host_sramc_data, dut.sram_top_i.host_sram_select_d, dut.sram_top_i.host_sram_select_q, dut.sram_top_i.i_select[2]);
                     repeat (beat_cycles - 1) @(posedge clk);
                     #1ps;
                     beat_data = mem_rdata;
+                    if (trace_c_read)
+                        $display("DMA_C_READ_CAPTURE n=%0d dram_addr=%08x mem_addr=%08x lane_offset=%0d rdata=%0h c_host=%0h host_out=%0h bank_d=%08x bank_q=%08x select=%b", dma_c_read_debug_count, external_addr+offset, (local_addr+offset) & ~(MEM_BYTES-1), lane_offset, mem_rdata, dut.sram_top_i.host_sramc_data, dut.sram_top_i.host_sram_output, dut.sram_top_i.host_sram_select_d, dut.sram_top_i.host_sram_select_q, dut.sram_top_i.i_select[2]);
                     if (offset + MEM_BYTES >= byte_count) pulse_dma_irq(2'b01);
                     for (lane = 0; lane < chunk_bytes; lane = lane + 1)
                         dram[external_addr + offset + lane] = beat_data[(lane_offset+lane)*8 +: 8];
