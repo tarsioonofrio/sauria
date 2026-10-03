@@ -600,6 +600,16 @@ module tb;
         $finish;
     end
 
+    generate
+        for (genvar debug_lane = 0; debug_lane < 8; debug_lane++) begin : gen_act_drain_trace
+            always @(posedge clk) begin
+                if (rstn && measure_active && layer_cycles >= 11670 && layer_cycles <= 11710 &&
+                    dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q == 5'd7)
+                    $display("FEED_ACT_LANE cycle=%0d lane=%0d ptr=%0d offset=%0d empty=%b full=%b stall=%b push=%b pop=%b pop_en_q=%b valid=%b update=%b feeder_en=%b", layer_cycles, debug_lane, dut.sauria_logic_i.ifmap_feeder_i.y_axis[debug_lane].ifmap_feeder_i.fifo_i.ptr_q, dut.sauria_logic_i.ifmap_feeder_i.y_axis[debug_lane].ifmap_feeder_i.fifo_i.out_woffs, dut.sauria_logic_i.ifmap_feeder_i.fifo_empty[debug_lane], dut.sauria_logic_i.ifmap_feeder_i.fifo_full[debug_lane], dut.sauria_logic_i.ifmap_feeder_i.stall[debug_lane], dut.sauria_logic_i.ifmap_feeder_i.y_axis[debug_lane].ifmap_feeder_i.fifo_push, dut.sauria_logic_i.ifmap_feeder_i.y_axis[debug_lane].ifmap_feeder_i.fifo_pop, dut.sauria_logic_i.ifmap_feeder_i.y_axis[debug_lane].ifmap_feeder_i.pop_en_q, dut.sauria_logic_i.ifmap_feeder_i.valid_data, dut.sauria_logic_i.ifmap_feeder_i.feeders_update, dut.sauria_logic_i.ifmap_feeder_i.y_axis[debug_lane].ifmap_feeder_i.i_feeder_en);
+            end
+        end
+    endgenerate
+
     always @(posedge clk) begin
         if (rstn && measure_active && layer_cycles < max_cycles_arg)
             layer_cycles = layer_cycles + 1;
@@ -628,6 +638,9 @@ module tb;
                 dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q == 5'd6 &&
                 dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_d == 5'd7)
                 $display("FEED_TERMINAL_ACT cycle=%0d q=%0d d=%0d pre_feeding=%b raw_til_done=%b til_q=%b til_shim=%b rep_q=%0d rep_d=%0d ov=%b ov_shim=%b hold_d=%b hold_q=%b cnt_en=%b fifo_empty=%b fifo_full=%b stall=%b lane_empty=%b lane_full=%b lane_stall=%b rows_active=%b act_done=%b sa_pipe=%b", layer_cycles, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_d, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.pre_feeding_flag, dut.sauria_logic_i.mc_act_til_done, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_til_done_q, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_til_done_shim, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_rep_cnt_q, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_rep_cnt_d, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_ov_flag, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_ov_flag_shim, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_cnt_hold_d, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_cnt_hold_q, dut.sauria_logic_i.main_controller_i.o_act_cnt_en, dut.sauria_logic_i.mc_act_fifo_empty, dut.sauria_logic_i.mc_act_fifo_full, dut.sauria_logic_i.mc_act_stall, dut.sauria_logic_i.ifmap_feeder_i.fifo_empty, dut.sauria_logic_i.ifmap_feeder_i.fifo_full, dut.sauria_logic_i.ifmap_feeder_i.stall, dut.sauria_logic_i.af_rows_active, dut.sauria_logic_i.mc_act_done, dut.sauria_logic_i.sa_pipeline_en);
+            if (measure_active && layer_cycles >= 11670 && layer_cycles <= 11710 &&
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q == 5'd7)
+                $display("FEED_ACT_DRAIN cycle=%0d state=%0d state_d=%0d pre_feeding=%b terminal=%b/%b hold=%b/%b cnt_en=%b fifo_empty=%b fifo_full=%b stall=%b lane_empty=%b lane_full=%b lane_stall=%b feeders_update=%b pipeline_gate=%b sa_pipe=%b pop_gate=%b", layer_cycles, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_d, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.pre_feeding_flag, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_til_done_shim, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_ov_flag_shim, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_cnt_hold_d, dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_cnt_hold_q, dut.sauria_logic_i.main_controller_i.o_act_cnt_en, dut.sauria_logic_i.mc_act_fifo_empty, dut.sauria_logic_i.mc_act_fifo_full, dut.sauria_logic_i.mc_act_stall, dut.sauria_logic_i.ifmap_feeder_i.fifo_empty, dut.sauria_logic_i.ifmap_feeder_i.fifo_full, dut.sauria_logic_i.ifmap_feeder_i.stall, dut.sauria_logic_i.ifmap_feeder_i.feeders_update, dut.sauria_logic_i.main_controller_i.pipeline_gate, dut.sauria_logic_i.sa_pipeline_en, dut.sauria_logic_i.main_controller_i.pop_gate);
             if (dut.sauria_logic_i.config_regs_i.start_edge)
                 debug_core_started_q <= 1'b1;
             debug_core_done_q <= dut.sauria_logic_i.cg_done;
