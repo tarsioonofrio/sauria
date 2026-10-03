@@ -242,6 +242,29 @@ module tb;
                 dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q,
                 dut.sauria_logic_i.mc_start, dut.sauria_logic_i.sa_pipeline_en,
                 dut.sauria_logic_i.mc_outbuf_done, dut.sauria_logic_i.mc_shift_done);
+            $display("DEBUG_STALL state=%0d ready=%b force=%b gate=%b pop_gate=%b cdone=%b cswitch_done=%b cswitch_en=%b",
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.stall_state_q,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.computation_ready,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.force_stall,
+                dut.sauria_logic_i.main_controller_i.pipeline_gate,
+                dut.sauria_logic_i.main_controller_i.pop_gate,
+                dut.sauria_logic_i.main_controller_i.cdone,
+                dut.sauria_logic_i.main_controller_i.cswitch_done,
+                dut.sauria_logic_i.main_controller_i.cswitch_en);
+            $display("DEBUG_FEED hold=%b/%b reps=%0d/%0d pop=%b/%b pipeline=%b feeder_deadlock=%b",
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_cnt_hold_q,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_cnt_hold_q,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_rep_cnt_q,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_rep_cnt_q,
+                dut.sauria_logic_i.af_act_pop_en, dut.sauria_logic_i.wf_wei_pop_en,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.pipeline_en,
+                dut.sauria_logic_i.cg_feed_deadlock);
+            $display("DEBUG_CSWITCH incnt=%0d cscnt=%0d trigger=%b flag=%b input_limit=%0d",
+                dut.sauria_logic_i.main_controller_i.context_switch_controller_i.incnt_q,
+                dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cscnt_q,
+                dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cscnt_trigger,
+                dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cscnt_flag,
+                dut.sauria_logic_i.mc_incntlim);
             $fatal(1, "layer timed out after %0d cycles", cycles);
         end
         layer_end_ns = $realtime;
