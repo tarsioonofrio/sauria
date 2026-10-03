@@ -22,7 +22,8 @@ PROFILES = {
     "fp16_8x16": {
         "version": "FP16_8x16",
         "memory_depths": (16384, 8192, 16384),
-        "lanes": (8, 16, 8),
+        # SRAM A is Y lanes, SRAM B is X lanes, and SRAM C is Y lanes.
+        "lanes": (16, 8, 8),
         "cases": {
             "conv-small": {
                 "shapes": ([32, 10, 10], [32, 32, 3, 3], [32, 8, 8]),
