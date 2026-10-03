@@ -221,7 +221,29 @@ module tb;
             @(posedge clk);
             cycles = cycles + 1;
         end
-        if (doneintr !== 1'b1) $fatal(1, "layer timed out after %0d cycles", cycles);
+        if (doneintr !== 1'b1) begin
+            $display("DEBUG_TIMEOUT doneintr=%b mc_start=%b cg_done=%b ctx_status=%b feed_status=%b",
+                doneintr, dut.sauria_logic_i.mc_start, dut.sauria_logic_i.cg_done,
+                dut.sauria_logic_i.cg_ctx_status, dut.sauria_logic_i.cg_feed_status);
+            $display("DEBUG_ACT done=%b til_done=%b fifo_empty=%b fifo_full=%b stall=%b feeder_en=%b rden=%b addr=%0d",
+                dut.sauria_logic_i.mc_act_done, dut.sauria_logic_i.mc_act_til_done,
+                dut.sauria_logic_i.mc_act_fifo_empty, dut.sauria_logic_i.mc_act_fifo_full,
+                dut.sauria_logic_i.mc_act_stall, dut.sauria_logic_i.af_act_feeder_en,
+                dut.sauria_logic_i.af_act_feeder_i.o_srama_rden,
+                dut.sauria_logic_i.af_act_feeder_i.o_srama_addr);
+            $display("DEBUG_WEI done=%b til_done=%b fifo_empty=%b fifo_full=%b stall=%b feeder_en=%b rden=%b addr=%0d",
+                dut.sauria_logic_i.mc_wei_done, dut.sauria_logic_i.mc_wei_til_done,
+                dut.sauria_logic_i.mc_wei_fifo_empty, dut.sauria_logic_i.mc_wei_fifo_full,
+                dut.sauria_logic_i.mc_wei_stall, dut.sauria_logic_i.wf_wei_feeder_en,
+                dut.sauria_logic_i.weight_feeder_i.o_sramb_rden,
+                dut.sauria_logic_i.weight_feeder_i.o_sramb_addr);
+            $display("DEBUG_CTRL ctx_state=%0d feed_state=%0d start=%b pipeline_en=%b outbuf_done=%b shift_done=%b",
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_q,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q,
+                dut.sauria_logic_i.mc_start, dut.sauria_logic_i.sa_pipeline_en,
+                dut.sauria_logic_i.mc_outbuf_done, dut.sauria_logic_i.mc_shift_done);
+            $fatal(1, "layer timed out after %0d cycles", cycles);
+        end
         layer_end_ns = $realtime;
         $display("LAYER_END_NS=%0.3f", layer_end_ns);
         $display("LAYER_CYCLES=%0d", cycles);

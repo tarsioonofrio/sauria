@@ -70,7 +70,7 @@ for case_name in "${case_list[@]}"; do
         "+WEIGHT_WORDS=$WEIGHT_WORDS"
         "+OUTPUT_WORDS=$OUTPUT_WORDS"
         "+OUTPUT_VALUES=$OUTPUT_VALUES"
-        "+MAX_LAYER_CYCLES=20000000"
+        "+MAX_LAYER_CYCLES=${MAX_LAYER_CYCLES:-20000000}"
     )
     rm -rf "$SIM_ROOT/dut.shm"
     rm -f "$SIM_ROOT/layer_window.txt" "$SIM_ROOT/output-readback.mem"
