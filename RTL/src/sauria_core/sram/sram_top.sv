@@ -41,7 +41,8 @@ module sram_top #(
     parameter SRAMC_W = 128,
     parameter RF_C = 0,
 
-    parameter SRAMC_N = 8
+    parameter SRAMC_N = 8,
+    parameter EXTENDED_HOST_MAP = 0
 )(
     // Clk, RST
 	input  logic 				        i_clk,
@@ -90,8 +91,17 @@ localparam HOST_ADR_W = IF_ADR_W - IF_LSB_BITS;
 // adapters; otherwise non-power-of-two host widths can shift those global
 // bits into the physical SRAM address when the adapter adds a chunk selector.
 logic [HOST_ADR_W-1:0] host_local_address;
-assign host_local_address = i_address[IF_ADR_W-1:IF_LSB_BITS] &
-                            ~(sauria_addr_pkg::SAURIA_MEM_ADDR_MASK >> IF_LSB_BITS);
+generate
+    if (EXTENDED_HOST_MAP) begin : extended_host_address_map
+        // Experimental ASIC wrapper map: the upper two address bits select
+        // the SRAM bank, leaving the lower address range available for the
+        // complete configured SRAM depth. The default map remains unchanged.
+        assign host_local_address = i_address[29:IF_LSB_BITS];
+    end else begin : standard_host_address_map
+        assign host_local_address = i_address[IF_ADR_W-1:IF_LSB_BITS] &
+                                    ~(sauria_addr_pkg::SAURIA_MEM_ADDR_MASK >> IF_LSB_BITS);
+    end
+endgenerate
 
 // ----------
 // SIGNALS
@@ -116,7 +126,20 @@ logic [SRAMC_W-1:0]     sramc_output_q, sramc_output_d;
 // Host SRAM selection - Based on upper SRAM bits
 // ------------------------------------------------------------
 
-assign host_sram_select_d = i_address & sauria_addr_pkg::SAURIA_MEM_ADDR_MASK;
+generate
+    if (EXTENDED_HOST_MAP) begin : extended_host_bank_select
+        always_comb begin
+            case (i_address[31:30])
+                2'd0: host_sram_select_d = sauria_addr_pkg::SRAMA_OFFSET;
+                2'd1: host_sram_select_d = sauria_addr_pkg::SRAMB_OFFSET;
+                2'd2: host_sram_select_d = sauria_addr_pkg::SRAMC_OFFSET;
+                default: host_sram_select_d = '0;
+            endcase
+        end
+    end else begin : standard_host_bank_select
+        assign host_sram_select_d = i_address & sauria_addr_pkg::SAURIA_MEM_ADDR_MASK;
+    end
+endgenerate
 
 always_comb begin : host_rd_wr_enables
     
