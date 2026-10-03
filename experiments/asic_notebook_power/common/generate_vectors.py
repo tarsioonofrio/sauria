@@ -27,12 +27,14 @@ PROFILES = {
         "cases": {
             "conv-small": {
                 "shapes": ([32, 10, 10], [32, 32, 3, 3], [32, 8, 8]),
-                "tiling": {"C_tile_shape": [32, 4, 8], "tile_cin": 32, "X_used": 16, "Y_used": 8},
+                # Keep the whole layer in one resident tile. The ASIC testbench
+                # performs one start and does not model notebook host reloads.
+                "tiling": {"C_tile_shape": [32, 8, 8], "tile_cin": 32, "X_used": 16, "Y_used": 8},
                 "seed": 20261003,
             },
             "conv-large": {
                 "shapes": ([64, 34, 34], [128, 64, 3, 3], [128, 32, 32]),
-                "tiling": {"C_tile_shape": [32, 8, 32], "tile_cin": 32, "loop_order": 1, "X_used": 16, "Y_used": 8},
+                "tiling": {"C_tile_shape": [128, 32, 32], "tile_cin": 64, "loop_order": 1, "X_used": 16, "Y_used": 8},
                 "seed": 20261004,
             },
         },
@@ -44,12 +46,12 @@ PROFILES = {
         "cases": {
             "conv": {
                 "shapes": ([64, 66, 66], [64, 64, 3, 3], [64, 64, 64]),
-                "tiling": {"C_tile_shape": [64, 8, 64], "tile_cin": 64, "X_used": 32, "Y_used": 32},
+                "tiling": {"C_tile_shape": [64, 64, 64], "tile_cin": 64, "X_used": 32, "Y_used": 32},
                 "seed": 20261005,
             },
             "gemm": {
                 "shapes": ([512, 1, 256], [512, 512, 1, 1], [512, 1, 256]),
-                "tiling": {"C_tile_shape": [128, 1, 256], "tile_cin": 256, "X_used": 32, "Y_used": 32},
+                "tiling": {"C_tile_shape": [512, 1, 256], "tile_cin": 512, "X_used": 32, "Y_used": 32},
                 "seed": 20261006,
             },
         },
