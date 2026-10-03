@@ -544,6 +544,7 @@ module tb;
         if (layer_done !== 1'b1) begin
             $display("TIMEOUT_DEBUG ctrl_start=%b ctrl_ready=%b ctrl_done=%b if_state=%0d dma_state=%0d dma_sub_state=%0d first_dma=%b goto_sauria=%b dma_irq_inputs=%b%b irq_mask=%08x irq_pending=%b dma_bvalid=%b dma_bready=%b dma_aw_pending=%b dma_w_pending=%b", dut.df_controller_i.start_q, dut.df_controller_i.ready_q, dut.df_controller_i.done_q, dut.df_controller_i.sauria_interface_I.state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.sub_state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.first_dma_iter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.goto_sync_sauria, dma_reader_interrupt, dma_writer_interrupt, dma_irq_mask_q, dma_irq_pending_q, dma_b_valid, dma_b_ready, dma_aw_pending, dma_w_pending);
             $display("DMA_START_PENDING reader=%b addr=%08x btt=%0d writer=%b addr=%08x btt=%0d", dma_reader_start_pending_q, dma_reader_start_addr_q, dma_reader_start_btt_q, dma_writer_start_pending_q, dma_writer_start_addr_q, dma_writer_start_btt_q);
+            $display("SAURIA_IF_DEBUG state=%0d addr=%08x region=%0d reg_idx=%0d count=%0d addr_sent=%b data_sent=%b start=%b wresp_sync=%b wresp_count=%0d dma_sync=%b core_irq=%b awvalid=%b awready=%b awaddr=%08x wvalid=%b wready=%b wdata=%08x bvalid=%b bready=%b", dut.df_controller_i.sauria_interface_I.state, dut.df_controller_i.sauria_interface_I.addr, dut.df_controller_i.sauria_interface_I.current_addr_region, dut.df_controller_i.sauria_interface_I.sauria_reg_idx, dut.df_controller_i.sauria_interface_I.count, dut.df_controller_i.sauria_interface_I.addr_sent, dut.df_controller_i.sauria_interface_I.data_sent, dut.df_controller_i.sauria_interface_I.start, dut.df_controller_i.sauria_interface_I.wresp_sync_state, dut.df_controller_i.sauria_interface_I.wresp_count, dut.df_controller_i.sauria_interface_I.dma_sync, sauria_done, dut.ctrl_sauria_bus.aw_valid, dut.ctrl_sauria_bus.aw_ready, dut.ctrl_sauria_bus.aw_addr, dut.ctrl_sauria_bus.w_valid, dut.ctrl_sauria_bus.w_ready, dut.ctrl_sauria_bus.w_data, dut.ctrl_sauria_bus.b_valid, dut.ctrl_sauria_bus.b_ready);
             $display("DMA_FSM_DEBUG next=%0d first_tile=%b addr=%08x wdata=%08x addr_sent=%b data_sent=%b start=%b start_wresp_sync=%b wresp_sync=%b wresp_count=%0d btt=%0d local_addr=%08x y=%0d/%0d z=%0d/%0d ycounter=%0d zcounter=%0d last_iter=%b ifmaps_change=%b weights_change=%b psums_change=%b", dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.next_action, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.first_tile, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wdata, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.data_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start_wresp_sync, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_sync_state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_counter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.btt, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.local_SRAM_addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.y, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ylim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.z, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zlim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ycounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zcounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.last_iter_sig, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ifmaps_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.weights_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.psums_change);
             $fatal(1, "layer timed out after %0d cycles; DMA jobs=%0d", layer_cycles, dma_jobs);
         end
@@ -592,5 +593,18 @@ module tb;
     always @(posedge clk) begin
         if (rstn && measure_active && layer_cycles < max_cycles_arg)
             layer_cycles = layer_cycles + 1;
+
+        if (rstn && measure_active) begin
+            if ((dut.df_controller_i.sauria_interface_I.state == 5'd4 ||
+                 dut.df_controller_i.sauria_interface_I.state == 5'd5) &&
+                dut.ctrl_sauria_bus.aw_valid && dut.ctrl_sauria_bus.aw_ready)
+                $display("SAURIA_AXI_AW addr=%08x", dut.ctrl_sauria_bus.aw_addr);
+            if (dut.df_controller_i.sauria_interface_I.state == 5'd5 &&
+                dut.ctrl_sauria_bus.w_valid && dut.ctrl_sauria_bus.w_ready)
+                $display("SAURIA_AXI_W data=%08x strb=%x", dut.ctrl_sauria_bus.w_data, dut.ctrl_sauria_bus.w_strb);
+            if (dut.df_controller_i.sauria_interface_I.state == 5'd6 &&
+                dut.ctrl_sauria_bus.b_valid && dut.ctrl_sauria_bus.b_ready)
+                $display("SAURIA_AXI_B resp=%b", dut.ctrl_sauria_bus.b_resp);
+        end
     end
 endmodule
