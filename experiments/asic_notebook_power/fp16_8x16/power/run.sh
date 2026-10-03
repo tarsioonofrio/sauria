@@ -6,6 +6,7 @@ module purge
 module use /soft64/modulefiles
 module load cadence/genus/211
 : "${POWER_CASE:?set POWER_CASE to a completed workload case}"
-mkdir -p "$POWER_ROOT/results/$POWER_CASE"
-genus -f "$POWER_ROOT/power.tcl" 2>&1 | tee "$POWER_ROOT/results/$POWER_CASE/joules.log"
-[[ -s "$POWER_ROOT/results/$POWER_CASE/power_evaluation.txt" ]] || { echo "Joules did not create power report for $POWER_CASE" >&2; exit 3; }
+: "${POWER_RUN_ID:?set POWER_RUN_ID to the matching simulation run id}"
+mkdir -p "$POWER_ROOT/results/$POWER_RUN_ID/$POWER_CASE"
+genus -f "$POWER_ROOT/power.tcl" 2>&1 | tee "$POWER_ROOT/results/$POWER_RUN_ID/$POWER_CASE/joules.log"
+[[ -s "$POWER_ROOT/results/$POWER_RUN_ID/$POWER_CASE/power_evaluation.txt" ]] || { echo "Joules did not create power report for $POWER_CASE ($POWER_RUN_ID)" >&2; exit 3; }

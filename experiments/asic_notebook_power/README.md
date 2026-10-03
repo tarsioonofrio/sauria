@@ -9,10 +9,11 @@ Python notebooks**, separate from `experiments/asic_isoarea` and its signed
 | `fp16_8x16` | X=16, Y=8 | SAURIA FP16, 16-bit operands/partial sums | 2048 / 1024 / 2048 words |
 | `int8_32x32` | X=32, Y=32 | signed 8-bit operands, signed 32-bit partial sums | 2048 / 2048 / 1024 words |
 
-Both target TSMC 28 nm Genus/Xcelium/Joules at 500 MHz (2 ns). The intended
-sequence is logical synthesis, full-layer RTL golden simulation, gate-level
-SDF simulation, then Joules activity-based power at TT, 0.90 V, 25 C. The
-current direct-core wrapper does not yet implement the full-layer sequence.
+Both target TSMC 28 nm Genus/Xcelium/Joules at 500 MHz (2 ns). The campaign
+sequence is full-layer RTL golden simulation, logical synthesis, gate-level
+SDF simulation, then Joules activity-based power at TT, 0.90 V, 25 C. Each
+campaign stores synthesis outputs below `logical/results/<run_id>/`, so a new
+run does not replace reports or netlists from earlier runs.
 
 The four deterministic workloads are:
 
@@ -34,14 +35,26 @@ signed 32-bit wrap.
 
 ## Power boundary and limitations
 
-The current experimental top retains SAURIA's local SRAMs, feeders,
-systolic array, and partial-sum manager. It does not yet include the notebook's
-`df_controller_top` tile scheduler or model the DMA's tile transfers. The direct
-preload testbench therefore cannot be used as a full-layer System+Convolution
-result; use it only as a diagnostic until that boundary is implemented. The
-current testbench's direct SRAM preload does not model tile reloads, DMA
-completion, or the shared external bandwidth. Its `DRAM_BANDWIDTH` setting is
-therefore not evidence that the accelerator is throttled at that interface.
+The experimental top includes SAURIA's native `df_controller_top`, core logic,
+feeders, systolic array, partial-sum manager, and local SRAMs. The uDMA and
+platform AXI fabric stay outside the synthesis boundary. The testbench services
+the controller's native DMA AXI-Lite command sequence and performs the requested
+BTT byte copies between one external DRAM image and local SRAMs through the
+official `0xD0040000`, `0xD0080000`, and `0xD00C0000` bank map. Each test programs
+the controller and core before issuing one layer start; the controller advances
+all tiles. The testbench checks that the output DRAM region differs from the
+golden before start, then checks every expected output byte after the
+controller completes the layer. It records each DMA job, traffic count, and
+the activity window from the controller start through `layer_done`, before
+testbench golden readback.
+
+`DRAM_BANDWIDTH` is one shared cap for the external memory model. A single DMA
+command is serviced at a time, so IFMAP, weights, partial sums, and outputs do
+not receive separate external channels. `DRAM_LATENCY` is charged for each
+command. The direct SRAM host port has registered reads, which limit the modeled
+SRAM-to-DRAM direction further; logs report the resulting service cycles and
+bytes. This is a functional model of the excluded DMA/data movement contract,
+not the omitted uDMA's physical area or exact internal arbitration.
 
 The local SRAMs are synthesis black boxes because this flow does not have
 characterized compatible SRAM macros. A future Genus/Joules result will cover
@@ -49,19 +62,17 @@ standard-cell logic only; memory power must not be reported as zero or
 presented as total accelerator power. Capacity per bank is written to each
 vector manifest. Report logic area and memory capacity separately.
 
-**This campaign is not ready for full-layer ASIC power runs.** The existing
-`run_campaign.sh` is retained as a scaffold, but must not be used to claim
-System+Convolution area, timing, or power until the tile scheduler and a
-bandwidth-limited DMA transaction model are integrated, and both notebooks'
-golden checks pass at RTL and gate level. For the official notebook sequence,
-program the controller/core, issue one layer start, and let
-`df_controller_top` advance all tiles. Do not preload the complete tensors into
-the local SRAMs and start the core directly.
+The integrated boundary and testbench still need an RTL full-layer golden pass
+for all four workloads, followed by gate-level SDF golden passes, before a
+Joules power result is considered valid. Joules reads both bounds of the gate
+simulation's layer window. A lint/elaboration pass alone is not a functional or
+power result. The official sequence is one controller start per layer; do not
+preload full tensors into local SRAM and start the core directly.
 
 ## Run
 
-When the controller and DMA model are integrated, run one profile at a time in
-a clean campaign checkout on Paxos through SSH and `tmux`. Keep durable
-artifacts under that profile's `logical/results/`,
-`sim/run_artifacts/<case>/`, `power/results/<case>/`, and `run_metadata/`, and
-use a task-specific `TMPDIR` under `/sim` for large tool temporaries.
+Run one profile at a time in a task-specific checkout on Paxos through SSH and
+`tmux`. Each run gets an immutable run id; keep artifacts under that profile's
+`logical/results/<run_id>/`, `sim/run_artifacts/<run_id>/<case>/`,
+`power/results/<run_id>/<case>/`, and `run_metadata/<run_id>/`. Use a
+task-specific `TMPDIR` under `/sim` for large tool temporaries.

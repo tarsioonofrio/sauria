@@ -1,305 +1,497 @@
 `timescale 1ns/1ps
 
 module tb;
-    localparam int CFG_W = 32;
-    localparam int MEM_W = 128;
-    localparam int ADDR_W = 32;
-    localparam int ARRAY_X = `X;
-    localparam int ARRAY_Y = `Y;
-    localparam int IA_W = `IA_W;
-    localparam int IB_W = `IB_W;
-    localparam int OC_W = `OC_W;
-    localparam int SRAMA_W = ARRAY_Y * IA_W;
-    localparam int SRAMB_W = ARRAY_X * IB_W;
-    localparam int SRAMC_W = ARRAY_Y * OC_W;
-    localparam int MAX_SRAM_WORD_W = (SRAMC_W > SRAMB_W) ? ((SRAMC_W > SRAMA_W) ? SRAMC_W : SRAMA_W) : ((SRAMB_W > SRAMA_W) ? SRAMB_W : SRAMA_W);
-    localparam int MAX_VECTOR_WORDS = 16384;
-    localparam int MAX_OUTPUT_VALUES = 262144;
+    localparam int MEM_W = `AXI_NOC_DATA_WIDTH;
+    localparam int MEM_BYTES = MEM_W / 8;
     localparam int MAX_CONFIG_WORDS = 128;
-    localparam int MEM_BYTE_SHIFT = 4;
-
-    // Extended experimental map: upper address bits choose a bank, while
-    // lower address bits span its full configured depth.
-    localparam logic [31:0] SRAMA_BASE = 32'h0000_0000;
-    localparam logic [31:0] SRAMB_BASE = 32'h4000_0000;
-    localparam logic [31:0] SRAMC_BASE = 32'h8000_0000;
+    localparam int MAX_DRAM_BYTES = 2_000_000;
+    localparam int MAX_OUTPUT_VALUES = 262_144;
+    localparam int DMA_CFG_CTRL = 32'h00;
+    localparam int DMA_CFG_IRQ_MASK = 32'h04;
+    localparam int DMA_CFG_IRQ_STATUS = 32'h0c;
+    localparam int DMA_CFG_READER_ADDR = 32'h10;
+    localparam int DMA_CFG_WRITER_ADDR = 32'h20;
+    localparam int DMA_CFG_BTT = 32'h30;
+    localparam logic [31:0] SAURIA_DMA_REGION = 32'hd000_0000;
 
     logic clk = 1'b0;
     logic rstn = 1'b0;
-    logic [CFG_W-1:0] cfg_data = '0;
-    logic [31:0] cfg_addr = '0;
-    logic cfg_wren = 1'b0;
-    logic cfg_rden = 1'b0;
-    logic [CFG_W-1:0] cfg_wmask = '1;
-    wire [CFG_W-1:0] cfg_rdata;
+
+    logic ctrl_aw_valid = 1'b0;
+    logic [31:0] ctrl_aw_addr = '0;
+    logic [2:0] ctrl_aw_prot = '0;
+    wire ctrl_aw_ready;
+    logic ctrl_w_valid = 1'b0;
+    logic [31:0] ctrl_w_data = '0;
+    logic [3:0] ctrl_w_strb = 4'hf;
+    wire ctrl_w_ready;
+    wire ctrl_b_valid;
+    wire [1:0] ctrl_b_resp;
+    logic ctrl_b_ready = 1'b1;
+
+    wire dma_aw_valid;
+    wire [31:0] dma_aw_addr;
+    wire [2:0] dma_aw_prot;
+    logic dma_aw_ready;
+    wire dma_w_valid;
+    wire [31:0] dma_w_data;
+    wire [3:0] dma_w_strb;
+    logic dma_w_ready;
+    logic dma_b_valid = 1'b0;
+    logic [1:0] dma_b_resp = 2'b00;
+    wire dma_b_ready;
+    logic dma_reader_interrupt;
+    logic dma_writer_interrupt;
+
     logic [MEM_W-1:0] mem_data = '0;
     logic [31:0] mem_addr = '0;
     logic mem_wren = 1'b0;
     logic mem_rden = 1'b0;
-    logic [MEM_W-1:0] mem_wmask = '1;
+    logic [MEM_W-1:0] mem_wmask = '0;
     wire [MEM_W-1:0] mem_rdata;
-    wire doneintr;
+    wire sauria_done;
+    wire layer_done;
 
-    logic [63:0] config_words [0:MAX_CONFIG_WORDS-1];
-    logic [MAX_SRAM_WORD_W-1:0] ifmap_words [0:MAX_VECTOR_WORDS-1];
-    logic [MAX_SRAM_WORD_W-1:0] weight_words [0:MAX_VECTOR_WORDS-1];
-    logic [MAX_SRAM_WORD_W-1:0] psum_words [0:MAX_VECTOR_WORDS-1];
-    logic [OC_W-1:0] golden [0:MAX_OUTPUT_VALUES-1];
+    logic [63:0] controller_words [0:MAX_CONFIG_WORDS-1];
+    logic [7:0] dram [0:MAX_DRAM_BYTES-1];
+    logic [7:0] dram_gold [0:MAX_DRAM_BYTES-1];
+    logic [31:0] golden [0:MAX_OUTPUT_VALUES-1];
 
-    integer config_count;
-    integer ifmap_count;
-    integer weight_count;
-    integer output_word_count;
-    integer output_value_count;
-    integer idx;
-    integer part;
-    integer cycles;
-    integer errors;
+    logic [31:0] dram_bytes;
+    logic [31:0] controller_word_count;
+    logic [31:0] output_values;
+    logic [31:0] dram_a_offset;
+    logic [31:0] dram_b_offset;
+    logic [31:0] dram_c_offset;
+    logic [31:0] output_bytes;
+    logic [31:0] max_layer_cycles;
+
+    logic dma_aw_pending = 1'b0;
+    logic dma_w_pending = 1'b0;
+    logic [31:0] dma_aw_addr_q = '0;
+    logic [31:0] dma_w_data_q = '0;
+    logic [3:0] dma_w_strb_q = '0;
+    logic [31:0] dma_reader_addr_q = '0;
+    logic [31:0] dma_writer_addr_q = '0;
+    logic [31:0] dma_btt_q = '0;
+    logic [31:0] dma_irq_mask_q = '0;
+    logic [1:0] dma_irq_pending_q = '0;
+    logic dma_job_start = 1'b0;
+    logic [1:0] dma_irq_set = '0;
+    logic measure_active = 1'b0;
+
+    integer dma_jobs = 0;
+    integer dma_ext_read_bytes = 0;
+    integer dma_ext_write_bytes = 0;
+    integer dma_ifmap_read_bytes = 0;
+    integer dma_weight_read_bytes = 0;
+    integer dma_psum_read_bytes = 0;
+    integer output_bytes_arg;
+    integer initial_output_mismatches;
+    integer dma_service_cycles = 0;
+    integer layer_cycles = 0;
+    integer errors = 0;
     integer fd;
-    integer scan_result;
-    integer lane;
+    integer idx;
     integer byte_idx;
-    integer max_cycles;
-    logic [MAX_SRAM_WORD_W-1:0] read_word;
-    logic [OC_W-1:0] actual;
-    logic [63:0] checksum;
+    integer beat_idx;
+    integer valid_bytes;
+    integer latency_cycles;
+    integer scan_result;
+    integer controller_count_arg;
+    integer dram_bytes_arg;
+    integer output_values_arg;
+    integer dram_a_arg;
+    integer dram_b_arg;
+    integer dram_c_arg;
+    integer max_cycles_arg;
+    integer unsigned config_addr;
+    integer unsigned config_data;
+    string vector_dir;
+    string artifact_dir;
+    string activity_path;
+    logic [31:0] checksum;
+    logic [MEM_W-1:0] beat_data;
+    logic [MEM_W-1:0] beat_mask;
+    logic [31:0] local_addr;
+    logic [31:0] external_addr;
+    logic copy_from_dram;
     realtime layer_start_ns;
     realtime layer_end_ns;
 
     always #1ns clk = ~clk;
 
+    assign dma_aw_ready = !dma_aw_pending && !dma_b_valid;
+    assign dma_w_ready = !dma_w_pending && !dma_b_valid;
+    assign dma_reader_interrupt = dma_irq_pending_q[0] && dma_irq_mask_q[0];
+    assign dma_writer_interrupt = dma_irq_pending_q[1] && dma_irq_mask_q[1];
+
     sauria_asic_top #(
-        .CFG_W(CFG_W), .CFG_ADDR_W(32), .MEM_W(MEM_W), .MEM_ADDR_W(ADDR_W)
+        .CFG_W(32),
+        .CFG_ADDR_W(32),
+        .MEM_W(MEM_W),
+        .MEM_ADDR_W(32),
+        .EXTENDED_HOST_MAP(0)
     ) dut (
-        .i_clk(clk), .i_rstn(rstn),
-        .i_cfg_data(cfg_data), .i_cfg_addr(cfg_addr),
-        .i_cfg_wren(cfg_wren), .i_cfg_rden(cfg_rden),
-        .i_cfg_wmask(cfg_wmask), .o_cfg_data(cfg_rdata),
-        .i_mem_data(mem_data), .i_mem_addr(mem_addr),
-        .i_mem_wren(mem_wren), .i_mem_rden(mem_rden),
-        .i_mem_wmask(mem_wmask), .o_mem_data(mem_rdata),
-        .o_doneintr(doneintr)
+        .i_clk(clk),
+        .i_rstn(rstn),
+        .i_ctrl_aw_valid(ctrl_aw_valid),
+        .i_ctrl_aw_addr(ctrl_aw_addr),
+        .i_ctrl_aw_prot(ctrl_aw_prot),
+        .o_ctrl_aw_ready(ctrl_aw_ready),
+        .i_ctrl_w_valid(ctrl_w_valid),
+        .i_ctrl_w_data(ctrl_w_data),
+        .i_ctrl_w_strb(ctrl_w_strb),
+        .o_ctrl_w_ready(ctrl_w_ready),
+        .o_ctrl_b_valid(ctrl_b_valid),
+        .o_ctrl_b_resp(ctrl_b_resp),
+        .i_ctrl_b_ready(ctrl_b_ready),
+        .o_dma_aw_valid(dma_aw_valid),
+        .o_dma_aw_addr(dma_aw_addr),
+        .o_dma_aw_prot(dma_aw_prot),
+        .i_dma_aw_ready(dma_aw_ready),
+        .o_dma_w_valid(dma_w_valid),
+        .o_dma_w_data(dma_w_data),
+        .o_dma_w_strb(dma_w_strb),
+        .i_dma_w_ready(dma_w_ready),
+        .i_dma_b_valid(dma_b_valid),
+        .i_dma_b_resp(dma_b_resp),
+        .o_dma_b_ready(dma_b_ready),
+        .i_dma_reader_interrupt(dma_reader_interrupt),
+        .i_dma_writer_interrupt(dma_writer_interrupt),
+        .i_mem_data(mem_data),
+        .i_mem_addr(mem_addr),
+        .i_mem_wren(mem_wren),
+        .i_mem_rden(mem_rden),
+        .i_mem_wmask(mem_wmask),
+        .o_mem_data(mem_rdata),
+        .o_sauria_done(sauria_done),
+        .o_layer_done(layer_done)
     );
 
 `ifdef XRUN
     initial begin
-        $shm_open("dut.shm");
+        if (!$value$plusargs("ACTIVITY_SHM=%s", activity_path)) $fatal(1, "missing ACTIVITY_SHM");
+        $shm_open(activity_path);
         $shm_probe(tb.dut, "ASM");
     end
 `endif
 
-    task automatic write_cfg(input logic [31:0] address, input logic [31:0] value);
+    task automatic controller_write(input logic [31:0] address, input logic [31:0] value);
+        integer aw_accepted;
+        integer w_accepted;
         begin
+            aw_accepted = 0;
+            w_accepted = 0;
             @(negedge clk);
-            cfg_addr = address;
-            cfg_data = value;
-            cfg_wren = 1'b1;
+            ctrl_aw_addr = address;
+            ctrl_w_data = value;
+            ctrl_aw_valid = 1'b1;
+            ctrl_w_valid = 1'b1;
+            while (!aw_accepted || !w_accepted) begin
+                @(posedge clk);
+                if (ctrl_aw_valid && ctrl_aw_ready) aw_accepted = 1;
+                if (ctrl_w_valid && ctrl_w_ready) w_accepted = 1;
+                @(negedge clk);
+                ctrl_aw_valid = !aw_accepted;
+                ctrl_w_valid = !w_accepted;
+            end
+            do @(posedge clk); while (!ctrl_b_valid);
+            if (ctrl_b_resp != 2'b00) $fatal(1, "controller AXI-Lite write error at %08x", address);
             @(negedge clk);
-            cfg_wren = 1'b0;
-            cfg_addr = '0;
-            cfg_data = '0;
+            ctrl_aw_valid = 1'b0;
+            ctrl_w_valid = 1'b0;
+            ctrl_aw_addr = '0;
+            ctrl_w_data = '0;
         end
     endtask
 
-    task automatic write_local_word(
-        input logic [31:0] base,
-        input integer word_index,
-        input integer sram_bits,
-        input logic [MAX_SRAM_WORD_W-1:0] value
-    );
-        integer chunks;
-        integer chunk;
+    task automatic dma_transfer(input logic [31:0] reader_addr,
+                                input logic [31:0] writer_addr,
+                                input logic [31:0] byte_count);
+        integer offset;
+        integer lane;
+        integer dram_beats;
+        integer beat_cycles;
         begin
-            chunks = (sram_bits + MEM_W - 1) / MEM_W;
-            for (chunk = 0; chunk < chunks; chunk = chunk + 1) begin
-                @(negedge clk);
-                mem_addr = base | ((word_index*chunks + chunk) << MEM_BYTE_SHIFT);
-                mem_data = value >> (chunk*MEM_W);
-                mem_wren = 1'b1;
-                @(negedge clk);
-                mem_wren = 1'b0;
+            if (byte_count == 0) $fatal(1, "DMA command has zero BTT");
+            copy_from_dram = ((reader_addr & 32'hf000_0000) != SAURIA_DMA_REGION);
+            if (copy_from_dram == ((writer_addr & 32'hf000_0000) != SAURIA_DMA_REGION))
+                $fatal(1, "DMA command must connect one external and one local address: AR=%08x AW=%08x", reader_addr, writer_addr);
+            if (copy_from_dram) begin
+                external_addr = reader_addr;
+                local_addr = writer_addr;
+            end else begin
+                local_addr = reader_addr;
+                external_addr = writer_addr;
             end
+            if ((external_addr & (MEM_BYTES-1)) != 0 || (local_addr & (MEM_BYTES-1)) != 0)
+                $fatal(1, "notebook DMA transfer is not %0d-byte aligned: external=%08x local=%08x", MEM_BYTES, external_addr, local_addr);
+            if (external_addr + byte_count > dram_bytes)
+                $fatal(1, "DMA external range outside DRAM image: %08x + %0d > %0d", external_addr, byte_count, dram_bytes);
+            if (copy_from_dram) begin
+                if (external_addr < dram_b_offset && external_addr + byte_count > dram_b_offset)
+                    $fatal(1, "IFMAP DMA crosses into weight region");
+                if (external_addr >= dram_b_offset && external_addr < dram_c_offset && external_addr + byte_count > dram_c_offset)
+                    $fatal(1, "weight DMA crosses into output/partial-sum region");
+            end else if (external_addr < dram_c_offset) begin
+                $fatal(1, "DMA writes outside external output/partial-sum region: %08x", external_addr);
+            end
+
+            // DRAM_BANDWIDTH is one shared external budget. The DMA has one
+            // active command at a time, so reads and writes cannot each claim
+            // a separate 128-bit/cycle channel.
+            if (`DRAM_BANDWIDTH <= 0 || `DRAM_BANDWIDTH > MEM_W)
+                $fatal(1, "unsupported shared DRAM bandwidth %0d for %0d-bit port", `DRAM_BANDWIDTH, MEM_W);
+            beat_cycles = (MEM_W + `DRAM_BANDWIDTH - 1) / `DRAM_BANDWIDTH;
+            // The modeled SRAM host read has two registered stages. Its
+            // transfer rate is an additional limit for local-to-DRAM writes.
+            if (!copy_from_dram && beat_cycles < 2) beat_cycles = 2;
+            dram_beats = (byte_count + MEM_BYTES - 1) / MEM_BYTES;
+            latency_cycles = `DRAM_LATENCY;
+            repeat (latency_cycles) @(posedge clk);
+            dma_service_cycles = dma_service_cycles + latency_cycles + dram_beats * beat_cycles + (copy_from_dram ? 0 : 2);
+
+            if (copy_from_dram) begin
+                for (offset = 0; offset < byte_count; offset = offset + MEM_BYTES) begin
+                    valid_bytes = ((byte_count - offset) < MEM_BYTES) ? (byte_count - offset) : MEM_BYTES;
+                    beat_data = '0;
+                    beat_mask = '0;
+                    for (lane = 0; lane < valid_bytes; lane = lane + 1) begin
+                        beat_mask[lane*8 +: 8] = 8'hff;
+                        beat_data[lane*8 +: 8] = dram[external_addr + offset + lane];
+                    end
+                    @(negedge clk);
+                    mem_addr = local_addr + offset;
+                    mem_data = beat_data;
+                    mem_wmask = beat_mask;
+                    mem_wren = 1'b1;
+                    @(posedge clk);
+                    #1ps;
+                    mem_wren = 1'b0;
+                    mem_wmask = '0;
+                    for (lane = 0; lane < valid_bytes; lane = lane + 1)
+                        begin
+                            dma_ext_read_bytes = dma_ext_read_bytes + 1;
+                            if (external_addr + offset + lane >= dram_a_offset && external_addr + offset + lane < dram_b_offset)
+                                dma_ifmap_read_bytes = dma_ifmap_read_bytes + 1;
+                            else if (external_addr + offset + lane >= dram_b_offset && external_addr + offset + lane < dram_c_offset)
+                                dma_weight_read_bytes = dma_weight_read_bytes + 1;
+                            else if (external_addr + offset + lane >= dram_c_offset)
+                                dma_psum_read_bytes = dma_psum_read_bytes + 1;
+                        end
+                    repeat (beat_cycles - 1) @(posedge clk);
+                end
+            end else begin
+                // sram_top's host read has two registered stages. The model
+                // holds one local read in flight and honors that response
+                // latency before returning the corresponding DRAM write.
+                for (offset = 0; offset < byte_count; offset = offset + MEM_BYTES) begin
+                    valid_bytes = ((byte_count - offset) < MEM_BYTES) ? (byte_count - offset) : MEM_BYTES;
+                    @(negedge clk);
+                    mem_addr = local_addr + offset;
+                    mem_rden = 1'b1;
+                    @(posedge clk);
+                    #1ps;
+                    mem_rden = 1'b0;
+                    repeat (beat_cycles - 1) @(posedge clk);
+                    #1ps;
+                    beat_data = mem_rdata;
+                    for (lane = 0; lane < valid_bytes; lane = lane + 1)
+                        dram[external_addr + offset + lane] = beat_data[lane*8 +: 8];
+                    dma_ext_write_bytes = dma_ext_write_bytes + valid_bytes;
+                end
+            end
+
+            dma_jobs = dma_jobs + 1;
+            $display("DMA_JOB=%0d AR=%08x AW=%08x BTT=%0d DIR=%s", dma_jobs,
+                     reader_addr, writer_addr, byte_count,
+                     copy_from_dram ? "DRAM_TO_SRAM" : "SRAM_TO_DRAM");
+            @(negedge clk);
         end
     endtask
 
-    task automatic read_local_word(
-        input logic [31:0] base,
-        input integer word_index,
-        input integer sram_bits,
-        output logic [MAX_SRAM_WORD_W-1:0] value
-    );
-        integer chunks;
-        integer chunk;
-        begin
-            chunks = (sram_bits + MEM_W - 1) / MEM_W;
-            value = '0;
-            for (chunk = 0; chunk < chunks; chunk = chunk + 1) begin
-                @(negedge clk);
-                mem_addr = base | ((word_index*chunks + chunk) << MEM_BYTE_SHIFT);
-                mem_rden = 1'b1;
-                @(negedge clk);
-                @(negedge clk);
-                mem_rden = 1'b0;
-                value[chunk*MEM_W +: MEM_W] = mem_rdata;
-            end
-        end
-    endtask
+    // AXI-Lite register target standing in for the excluded uDMA. This
+    // responds to the native command sequence and launches a byte-accurate
+    // transfer; it does not preload whole layers or assert completion early.
+    always @(posedge clk or negedge rstn) begin : dma_command_slave
+        logic aw_fire;
+        logic w_fire;
+        logic write_complete;
+        logic [31:0] write_addr;
+        logic [31:0] write_data;
+        logic [3:0] write_strb;
+        if (!rstn) begin
+            dma_aw_pending <= 1'b0;
+            dma_w_pending <= 1'b0;
+            dma_aw_addr_q <= '0;
+            dma_w_data_q <= '0;
+            dma_w_strb_q <= '0;
+            dma_reader_addr_q <= '0;
+            dma_writer_addr_q <= '0;
+            dma_btt_q <= '0;
+            dma_irq_mask_q <= '0;
+            dma_irq_pending_q <= '0;
+            dma_b_valid <= 1'b0;
+            dma_job_start <= 1'b0;
+        end else begin
+            dma_job_start <= 1'b0;
+            aw_fire = dma_aw_valid && dma_aw_ready;
+            w_fire = dma_w_valid && dma_w_ready;
+            write_complete = (dma_aw_pending || aw_fire) && (dma_w_pending || w_fire) && !dma_b_valid;
+            write_addr = dma_aw_pending ? dma_aw_addr_q : dma_aw_addr;
+            write_data = dma_w_pending ? dma_w_data_q : dma_w_data;
+            write_strb = dma_w_pending ? dma_w_strb_q : dma_w_strb;
 
-    initial begin
-        if (!$value$plusargs("IFMAP_WORDS=%d", ifmap_count)) $fatal(1, "missing IFMAP_WORDS");
-        if (!$value$plusargs("WEIGHT_WORDS=%d", weight_count)) $fatal(1, "missing WEIGHT_WORDS");
-        if (!$value$plusargs("OUTPUT_WORDS=%d", output_word_count)) $fatal(1, "missing OUTPUT_WORDS");
-        if (!$value$plusargs("OUTPUT_VALUES=%d", output_value_count)) $fatal(1, "missing OUTPUT_VALUES");
-        if (!$value$plusargs("MAX_LAYER_CYCLES=%d", max_cycles)) max_cycles = 20000000;
-        if (ifmap_count > MAX_VECTOR_WORDS || weight_count > MAX_VECTOR_WORDS || output_word_count > MAX_VECTOR_WORDS || output_value_count > MAX_OUTPUT_VALUES)
+            if (dma_b_valid && dma_b_ready) dma_b_valid <= 1'b0;
+            if (aw_fire) begin
+                dma_aw_pending <= 1'b1;
+                dma_aw_addr_q <= dma_aw_addr;
+            end
+            if (w_fire) begin
+                dma_w_pending <= 1'b1;
+                dma_w_data_q <= dma_w_data;
+                dma_w_strb_q <= dma_w_strb;
+            end
+
+            if (write_complete) begin
+                dma_aw_pending <= 1'b0;
+                dma_w_pending <= 1'b0;
+                dma_b_valid <= 1'b1;
+                dma_b_resp <= 2'b00;
+                case (write_addr[7:0])
+                    DMA_CFG_IRQ_MASK: dma_irq_mask_q <= write_data;
+                    DMA_CFG_IRQ_STATUS: begin
+                        if (write_strb[0]) dma_irq_pending_q <= dma_irq_pending_q & ~write_data[1:0];
+                    end
+                    DMA_CFG_READER_ADDR: dma_reader_addr_q <= write_data;
+                    DMA_CFG_WRITER_ADDR: dma_writer_addr_q <= write_data;
+                    DMA_CFG_BTT: dma_btt_q <= write_data;
+                    DMA_CFG_CTRL: begin
+                        if (write_data[0] && write_data[1]) dma_job_start <= 1'b1;
+                    end
+                    default: begin
+                    end
+                endcase
+            end
+
+            if (dma_irq_set != 2'b00)
+                dma_irq_pending_q <= dma_irq_pending_q | dma_irq_set;
+        end
+    end
+
+    // The controller expects independently visible completion interrupts and
+    // clears them by writing DMA_CFG_IRQ_STATUS. Keep them asserted until then.
+    always begin : dma_worker
+        @(posedge dma_job_start);
+        @(negedge clk);
+        dma_transfer(dma_reader_addr_q, dma_writer_addr_q, dma_btt_q);
+        @(negedge clk);
+        dma_irq_set = 2'b11;
+        @(negedge clk);
+        dma_irq_set = '0;
+    end
+
+    initial begin : layer_test
+        if (!$value$plusargs("CONTROLLER_CONFIG_WORDS=%d", controller_count_arg)) $fatal(1, "missing CONTROLLER_CONFIG_WORDS");
+        if (!$value$plusargs("DRAM_BYTES=%d", dram_bytes_arg)) $fatal(1, "missing DRAM_BYTES");
+        if (!$value$plusargs("OUTPUT_VALUES=%d", output_values_arg)) $fatal(1, "missing OUTPUT_VALUES");
+        if (!$value$plusargs("DRAM_A_OFFSET=%d", dram_a_arg)) $fatal(1, "missing DRAM_A_OFFSET");
+        if (!$value$plusargs("DRAM_B_OFFSET=%d", dram_b_arg)) $fatal(1, "missing DRAM_B_OFFSET");
+        if (!$value$plusargs("DRAM_C_OFFSET=%d", dram_c_arg)) $fatal(1, "missing DRAM_C_OFFSET");
+        if (!$value$plusargs("OUTPUT_BYTES=%d", output_bytes_arg)) $fatal(1, "missing OUTPUT_BYTES");
+        if (!$value$plusargs("VECTOR_DIR=%s", vector_dir)) $fatal(1, "missing VECTOR_DIR");
+        if (!$value$plusargs("ARTIFACT_DIR=%s", artifact_dir)) $fatal(1, "missing ARTIFACT_DIR");
+        if (!$value$plusargs("MAX_LAYER_CYCLES=%d", max_cycles_arg)) max_cycles_arg = 20_000_000;
+        if (controller_count_arg > MAX_CONFIG_WORDS || dram_bytes_arg > MAX_DRAM_BYTES || output_values_arg > MAX_OUTPUT_VALUES)
             $fatal(1, "generated workload exceeds testbench capacity");
+        controller_word_count = controller_count_arg;
+        dram_bytes = dram_bytes_arg;
+        output_values = output_values_arg;
+        dram_a_offset = dram_a_arg;
+        dram_b_offset = dram_b_arg;
+        dram_c_offset = dram_c_arg;
+        output_bytes = output_bytes_arg;
 
-        $readmemh("vectors/ifmap.mem", ifmap_words);
-        $readmemh("vectors/weights.mem", weight_words);
-        $readmemh("vectors/psum_init.mem", psum_words);
-        $readmemh("vectors/golden.mem", golden);
-        fd = $fopen("vectors/config.mem", "r");
-        if (fd == 0) $fatal(1, "cannot open vectors/config.mem");
-        config_count = 0;
-        while (!$feof(fd) && config_count < MAX_CONFIG_WORDS) begin
-            scan_result = $fscanf(fd, "%h", config_words[config_count]);
-            if (scan_result == 1) config_count = config_count + 1;
-        end
-        $fclose(fd);
-        if (config_count == 0 || config_count == MAX_CONFIG_WORDS)
-            $fatal(1, "configuration register count is invalid: %0d", config_count);
-
+        $readmemh({vector_dir, "/controller_config.mem"}, controller_words);
+        $readmemh({vector_dir, "/dram.mem"}, dram);
+        $readmemh({vector_dir, "/dram_gold.mem"}, dram_gold);
+        $readmemh({vector_dir, "/golden.mem"}, golden);
+        initial_output_mismatches = 0;
+        for (byte_idx = dram_c_offset; byte_idx < dram_bytes; byte_idx = byte_idx + 1)
+            if (dram[byte_idx] !== dram_gold[byte_idx]) initial_output_mismatches = initial_output_mismatches + 1;
+        if (initial_output_mismatches == 0)
+            $fatal(1, "DRAM output region already equals golden; output DMA could be skipped");
+        if (output_bytes != dram_bytes - dram_c_offset)
+            $fatal(1, "output byte range mismatch: expected=%0d C-region=%0d", output_bytes, dram_bytes - dram_c_offset);
         repeat (10) @(posedge clk);
         @(negedge clk);
         rstn = 1'b1;
+
+        for (idx = 0; idx < controller_word_count; idx = idx + 1) begin
+            config_addr = controller_words[idx][63:32];
+            config_data = controller_words[idx][31:0];
+            controller_write(config_addr, config_data);
+        end
+
         repeat (4) @(posedge clk);
-
-        // Host loading is outside the measured layer window; compute-side SRAM
-        // reads, feeder stalls, systolic execution and output commits stay inside.
-        for (idx = 0; idx < ifmap_count; idx = idx + 1)
-            write_local_word(SRAMA_BASE, idx, SRAMA_W, ifmap_words[idx]);
-        for (idx = 0; idx < weight_count; idx = idx + 1)
-            write_local_word(SRAMB_BASE, idx, SRAMB_W, weight_words[idx]);
-        for (idx = 0; idx < output_word_count; idx = idx + 1)
-            write_local_word(SRAMC_BASE, idx, SRAMC_W, psum_words[idx]);
-
-`ifndef POWER_ACTIVITY
-        read_local_word(SRAMA_BASE, 0, SRAMA_W, read_word);
-        if (read_word[SRAMA_W-1:0] !== ifmap_words[0][SRAMA_W-1:0])
-            $fatal(1, "IFMAP SRAM host round-trip failed");
-        read_local_word(SRAMB_BASE, 0, SRAMB_W, read_word);
-        if (read_word[SRAMB_W-1:0] !== weight_words[0][SRAMB_W-1:0])
-            $fatal(1, "weight SRAM host round-trip failed");
-        read_local_word(SRAMC_BASE, 0, SRAMC_W, read_word);
-        if (read_word[SRAMC_W-1:0] !== psum_words[0][SRAMC_W-1:0])
-            $fatal(1, "output SRAM host round-trip failed");
-`endif
-
-        for (idx = 0; idx < config_count; idx = idx + 1)
-            write_cfg(config_words[idx][63:32], config_words[idx][31:0]);
-        write_cfg(32'h5000_0004, 32'h0000_0001);
-        write_cfg(32'h5000_0008, 32'h0000_0001);
-
+        layer_cycles = 0;
+        measure_active = 1'b1;
         @(negedge clk);
-        cfg_addr = 32'h5000_0000;
-        cfg_data = 32'h0000_0001;
-        cfg_wren = 1'b1;
-        @(posedge clk);
         layer_start_ns = $realtime;
-        fd = $fopen("layer_window.txt", "w");
-        if (fd == 0) $fatal(1, "cannot create layer_window.txt");
+        fd = $fopen({artifact_dir, "/layer_window.txt"}, "w");
+        if (fd == 0) $fatal(1, "cannot create layer window file");
         $fdisplay(fd, "%0.3f", layer_start_ns);
         $fclose(fd);
         $display("LAYER_START_NS=%0.3f", layer_start_ns);
-        @(negedge clk);
-        cfg_wren = 1'b0;
-        cfg_addr = '0;
-        cfg_data = '0;
+        controller_write(32'h4000_0000, 32'h0000_0001);
 
-        cycles = 0;
-        while ((doneintr !== 1'b1) && (cycles < max_cycles)) begin
-            @(posedge clk);
-            cycles = cycles + 1;
-        end
-        if (doneintr !== 1'b1) begin
-            $display("DEBUG_TIMEOUT doneintr=%b mc_start=%b cg_done=%b ctx_status=%b feed_status=%b",
-                doneintr, dut.sauria_logic_i.mc_start, dut.sauria_logic_i.cg_done,
-                dut.sauria_logic_i.cg_ctx_status, dut.sauria_logic_i.cg_feed_status);
-            $display("DEBUG_ACT done=%b til_done=%b fifo_empty=%b fifo_full=%b stall=%b feeder_en=%b rden=%b addr=%0d",
-                dut.sauria_logic_i.mc_act_done, dut.sauria_logic_i.mc_act_til_done,
-                dut.sauria_logic_i.mc_act_fifo_empty, dut.sauria_logic_i.mc_act_fifo_full,
-                dut.sauria_logic_i.mc_act_stall, dut.sauria_logic_i.af_act_feeder_en,
-                dut.sauria_logic_i.o_srama_rden,
-                dut.sauria_logic_i.o_srama_addr);
-            $display("DEBUG_WEI done=%b til_done=%b fifo_empty=%b fifo_full=%b stall=%b feeder_en=%b rden=%b addr=%0d",
-                dut.sauria_logic_i.mc_wei_done, dut.sauria_logic_i.mc_wei_til_done,
-                dut.sauria_logic_i.mc_wei_fifo_empty, dut.sauria_logic_i.mc_wei_fifo_full,
-                dut.sauria_logic_i.mc_wei_stall, dut.sauria_logic_i.wf_wei_feeder_en,
-                dut.sauria_logic_i.o_sramb_rden,
-                dut.sauria_logic_i.o_sramb_addr);
-            $display("DEBUG_CTRL ctx_state=%0d feed_state=%0d start=%b pipeline_en=%b outbuf_done=%b shift_done=%b",
-                dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_q,
-                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q,
-                dut.sauria_logic_i.mc_start, dut.sauria_logic_i.sa_pipeline_en,
-                dut.sauria_logic_i.mc_outbuf_done, dut.sauria_logic_i.mc_shift_done);
-            $display("DEBUG_STALL state=%0d ready=%b force=%b gate=%b pop_gate=%b cdone=%b cswitch_done=%b cswitch_en=%b",
-                dut.sauria_logic_i.main_controller_i.context_fsm_i.stall_state_q,
-                dut.sauria_logic_i.main_controller_i.context_fsm_i.computation_ready,
-                dut.sauria_logic_i.main_controller_i.context_fsm_i.force_stall,
-                dut.sauria_logic_i.main_controller_i.pipeline_gate,
-                dut.sauria_logic_i.main_controller_i.pop_gate,
-                dut.sauria_logic_i.main_controller_i.cdone,
-                dut.sauria_logic_i.main_controller_i.cswitch_done,
-                dut.sauria_logic_i.main_controller_i.cswitch_en);
-            $display("DEBUG_FEED hold=%b/%b reps=%0d/%0d pop=%b/%b pipeline=%b feeder_deadlock=%b",
-                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_cnt_hold_q,
-                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_cnt_hold_q,
-                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_rep_cnt_q,
-                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_rep_cnt_q,
-                dut.sauria_logic_i.af_act_pop_en, dut.sauria_logic_i.wf_wei_pop_en,
-                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.pipeline_en,
-                dut.sauria_logic_i.cg_feed_deadlock);
-            $display("DEBUG_CSWITCH incnt=%0d cscnt=%0d trigger=%b flag=%b input_limit=%0d",
-                dut.sauria_logic_i.main_controller_i.context_switch_controller_i.incnt_q,
-                dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cscnt_q,
-                dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cscnt_trigger,
-                dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cscnt_flag,
-                dut.sauria_logic_i.mc_incntlim);
-            $fatal(1, "layer timed out after %0d cycles", cycles);
-        end
+        while ((layer_done !== 1'b1) && (layer_cycles < max_cycles_arg)) @(posedge clk);
+        if (layer_done !== 1'b1) $fatal(1, "layer timed out after %0d cycles; DMA jobs=%0d", layer_cycles, dma_jobs);
+        measure_active = 1'b0;
+        // layer_done is asserted only after the controller has completed its
+        // final external write. End the activity window here, before golden
+        // readback and reporting work in the testbench.
         layer_end_ns = $realtime;
         $display("LAYER_END_NS=%0.3f", layer_end_ns);
-        $display("LAYER_CYCLES=%0d", cycles);
-
-`ifndef POWER_ACTIVITY
-        write_cfg(32'h5000_0000, 32'h0000_0000);
-        write_cfg(32'h5000_0000, 32'h0001_0000);
-        repeat (5) @(posedge clk);
-        errors = 0;
-        checksum = 64'hcbf29ce484222325;
-        fd = $fopen("output-readback.mem", "w");
-        if (fd == 0) $fatal(1, "cannot create output-readback.mem");
-        for (idx = 0; idx < output_word_count; idx = idx + 1) begin
-            read_local_word(SRAMC_BASE, idx, SRAMC_W, read_word);
-            $fdisplay(fd, "%h", read_word[SRAMC_W-1:0]);
-            for (lane = 0; lane < `Y; lane = lane + 1) begin
-                if ((idx*`Y + lane) < output_value_count) begin
-                    actual = (read_word >> (lane*OC_W));
-                    if (actual !== golden[idx*`Y + lane]) begin
-                        if (errors < 10)
-                            $display("MISMATCH[%0d]: got %h expected %h", idx*`Y + lane, actual, golden[idx*`Y + lane]);
-                        errors = errors + 1;
-                    end
-                    for (byte_idx = 0; byte_idx < ((OC_W+7)/8); byte_idx = byte_idx + 1)
-                        checksum = (checksum ^ ((actual >> (8*byte_idx)) & 8'hff)) * 64'h100000001b3;
-                end
-            end
-        end
+        fd = $fopen({artifact_dir, "/layer_window.txt"}, "a");
+        if (fd == 0) $fatal(1, "cannot append layer window file at layer completion");
+        $fdisplay(fd, "%0.3f", layer_end_ns);
         $fclose(fd);
-        if (errors != 0) $fatal(1, "golden mismatch: %0d outputs", errors);
-        $display("OUTPUTS_CHECKED=%0d", output_value_count);
-        $display("OUTPUT_FNV1A64=%016x", checksum);
-`endif
+        $display("LAYER_CYCLES=%0d", layer_cycles);
+        $display("DMA_JOBS=%0d", dma_jobs);
+        $display("DRAM_READ_BYTES=%0d", dma_ext_read_bytes);
+        $display("IFMAP_READ_BYTES=%0d", dma_ifmap_read_bytes);
+        $display("WEIGHT_READ_BYTES=%0d", dma_weight_read_bytes);
+        $display("PSUM_READ_BYTES=%0d", dma_psum_read_bytes);
+        $display("DRAM_WRITE_BYTES=%0d", dma_ext_write_bytes);
+        $display("DRAM_SERVICE_CYCLES=%0d", dma_service_cycles);
+        $display("DRAM_TOTAL_BYTES=%0d", dma_ext_read_bytes + dma_ext_write_bytes);
+
+        errors = 0;
+        checksum = 32'h811c9dc5;
+        for (byte_idx = dram_c_offset; byte_idx < dram_bytes; byte_idx = byte_idx + 1) begin
+            if (dram[byte_idx] !== dram_gold[byte_idx]) begin
+                if (errors < 10)
+                    $display("DRAM_GOLDEN_MISMATCH byte=%0d got=%02x expected=%02x", byte_idx, dram[byte_idx], dram_gold[byte_idx]);
+                errors = errors + 1;
+            end
+            checksum = (checksum ^ dram[byte_idx]) * 32'h01000193;
+        end
+        if (errors != 0) $fatal(1, "full-layer golden mismatch: %0d output bytes", errors);
+        if (dma_jobs == 0 || dma_ext_read_bytes == 0 || dma_ext_write_bytes == 0)
+            $fatal(1, "layer did not exercise both external DRAM directions");
+        if (dma_ext_write_bytes != output_bytes)
+            $fatal(1, "external output writes do not cover the full layer: wrote=%0d expected=%0d", dma_ext_write_bytes, output_bytes);
+        $display("OUTPUTS_CHECKED=%0d", output_values);
+        $display("OUTPUT_BYTES_CHECKED=%0d", dram_bytes - dram_c_offset);
+        $display("OUTPUT_CHECKSUM=%08x", checksum);
+        $display("NOTEBOOK_LAYER_PASS");
         $finish;
+    end
+
+    always @(posedge clk) begin
+        if (rstn && measure_active && layer_cycles < max_cycles_arg)
+            layer_cycles = layer_cycles + 1;
     end
 endmodule

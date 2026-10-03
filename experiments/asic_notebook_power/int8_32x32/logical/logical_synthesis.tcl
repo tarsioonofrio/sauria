@@ -10,7 +10,11 @@
 set LOGICAL_ROOT [file normalize [file dirname [info script]]]
 set CONFIG_ROOT [file normalize [file join $LOGICAL_ROOT ..]]
 set GIT_ROOT [exec git -C $CONFIG_ROOT rev-parse --show-toplevel]
-set OUT_FILES [file normalize [file join $LOGICAL_ROOT results]]
+if {[info exists ::env(LOGICAL_RESULTS_ROOT)]} {
+    set OUT_FILES [file normalize $::env(LOGICAL_RESULTS_ROOT)]
+} else {
+    set OUT_FILES [file normalize [file join $LOGICAL_ROOT results]]
+}
 
 # The top is configurable per synthesis directory. Keep System as the default
 # so an empty template remains useful for the system wrapper.

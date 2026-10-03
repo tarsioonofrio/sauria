@@ -4,14 +4,17 @@ set -Eeuo pipefail
 SIM_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 CONFIG_ROOT=$(cd -- "$SIM_ROOT/.." && pwd)
 GIT_ROOT=$(git -C "$CONFIG_ROOT" rev-parse --show-toplevel)
-RESULTS="$CONFIG_ROOT/logical/results"
-RUN_ROOT="$SIM_ROOT/run_artifacts"
+RESULTS=${LOGICAL_RESULTS_ROOT:-"$CONFIG_ROOT/logical/results"}
+RUN_ID=${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$(git -C "$GIT_ROOT" rev-parse --short HEAD)}
+RUN_ROOT="$SIM_ROOT/run_artifacts/$RUN_ID"
 TB_ENTRY=$(awk 'NF && $1 !~ /^#/ {print $1; exit}' "$CONFIG_ROOT/testbench-file.txt")
 TB="$GIT_ROOT/$TB_ENTRY"
 RAM_RTL="$GIT_ROOT/RTL/src/sauria_core/sram/ram_inferred.sv"
 GATE_NETLIST="$RESULTS/gate_level/sauria_asic_top_logic_mapped.v"
 CELL_MODELS=/pdk/tsmc/PDK28/PDK_TSMC28_bv/tcbn28hpcplusbwp30p140_190a/TSMCHOME/digital/Front_End/verilog/tcbn28hpcplusbwp30p140_110a/tcbn28hpcplusbwp30p140.v
 PYTHON=${SAURIA_PYTHON:-/sim/tarsio/sauria/Python/sauria-env/bin/python}
+SIM_STAGE=${SIM_STAGE:-all}
+[[ "$SIM_STAGE" == rtl || "$SIM_STAGE" == gate || "$SIM_STAGE" == all ]] || { echo "SIM_STAGE must be rtl, gate, or all" >&2; exit 2; }
 
 source /usr/share/Modules/init/bash
 module purge
@@ -51,55 +54,58 @@ else
 fi
 mkdir -p "$RUN_ROOT"
 [[ -x "$PYTHON" ]] || { echo "Missing Python environment: $PYTHON" >&2; exit 2; }
-[[ -s "$GATE_NETLIST" ]] || { echo "Missing synthesized netlist: $GATE_NETLIST" >&2; exit 2; }
+if [[ "$SIM_STAGE" != rtl ]]; then
+    [[ -s "$GATE_NETLIST" ]] || { echo "Missing synthesized netlist: $GATE_NETLIST" >&2; exit 2; }
+fi
 
 for case_name in "${case_list[@]}"; do
     CASE_ROOT="$RUN_ROOT/$case_name"
-    VECTOR_ROOT="$SIM_ROOT/vectors"
-    mkdir -p "$CASE_ROOT"
+    VECTOR_ROOT="$CASE_ROOT/vectors"
+    mkdir -p "$CASE_ROOT/rtl" "$CASE_ROOT/gate"
     "$PYTHON" "$GIT_ROOT/experiments/asic_notebook_power/common/generate_vectors.py" \
         --profile "$(basename "$CONFIG_ROOT")" --case "$case_name" --out "$VECTOR_ROOT" \
         > "$CASE_ROOT/vector-generation.json"
-    rm -rf "$CASE_ROOT/vectors"
-    cp -a "$VECTOR_ROOT" "$CASE_ROOT/vectors"
     # run.env contains only integer word counts generated from the manifest.
     # shellcheck disable=SC1091
     source "$VECTOR_ROOT/run.env"
     PLUSARGS=(
-        "+IFMAP_WORDS=$IFMAP_WORDS"
-        "+WEIGHT_WORDS=$WEIGHT_WORDS"
-        "+OUTPUT_WORDS=$OUTPUT_WORDS"
+        "+CONTROLLER_CONFIG_WORDS=$CONTROLLER_CONFIG_WORDS"
+        "+DRAM_BYTES=$DRAM_BYTES"
         "+OUTPUT_VALUES=$OUTPUT_VALUES"
+        "+DRAM_A_OFFSET=$DRAM_A_OFFSET"
+        "+DRAM_B_OFFSET=$DRAM_B_OFFSET"
+        "+DRAM_C_OFFSET=$DRAM_C_OFFSET"
+        "+OUTPUT_BYTES=$OUTPUT_BYTES"
+        "+VECTOR_DIR=$VECTOR_ROOT"
         "+MAX_LAYER_CYCLES=${MAX_LAYER_CYCLES:-20000000}"
     )
-    rm -rf "$SIM_ROOT/dut.shm"
-    rm -f "$SIM_ROOT/layer_window.txt" "$SIM_ROOT/output-readback.mem"
-    (
-        cd "$SIM_ROOT"
-        xrun -f args.txt "${include_args[@]}" "${define_args[@]}" -define XRUN \
-            "${rtl_files[@]}" "$TB" -run -exit \
-            -l "$CASE_ROOT/rtl-xrun.log" "${PLUSARGS[@]}"
-    )
-    [[ -s "$SIM_ROOT/dut.shm" ]] || { echo "$case_name RTL run did not create SHM" >&2; exit 3; }
-    [[ -s "$SIM_ROOT/layer_window.txt" ]] || { echo "$case_name RTL run did not create layer window" >&2; exit 3; }
-    mv "$SIM_ROOT/dut.shm" "$CASE_ROOT/rtl.dut.shm"
-    cp "$SIM_ROOT/layer_window.txt" "$CASE_ROOT/rtl-layer-window.txt"
-    mv "$SIM_ROOT/output-readback.mem" "$CASE_ROOT/output-readback.mem"
-    grep -q 'OUTPUTS_CHECKED=' "$CASE_ROOT/rtl-xrun.log" || { echo "$case_name RTL golden check missing" >&2; exit 4; }
+    if [[ "$SIM_STAGE" != gate ]]; then
+        (
+            cd "$SIM_ROOT"
+            xrun -f args.txt "${include_args[@]}" "${define_args[@]}" -define XRUN \
+                "${rtl_files[@]}" "$TB" -run -exit \
+                -l "$CASE_ROOT/rtl-xrun.log" "${PLUSARGS[@]}" \
+                "+ARTIFACT_DIR=$CASE_ROOT/rtl" "+ACTIVITY_SHM=$CASE_ROOT/rtl.dut.shm"
+        )
+        [[ -s "$CASE_ROOT/rtl.dut.shm" ]] || { echo "$case_name RTL run did not create SHM" >&2; exit 3; }
+        [[ -s "$CASE_ROOT/rtl/layer_window.txt" ]] || { echo "$case_name RTL run did not create layer window" >&2; exit 3; }
+        cp "$CASE_ROOT/rtl/layer_window.txt" "$CASE_ROOT/rtl-layer-window.txt"
+        grep -q 'NOTEBOOK_LAYER_PASS' "$CASE_ROOT/rtl-xrun.log" || { echo "$case_name RTL full-layer golden check missing" >&2; exit 4; }
+    fi
 
-    rm -rf "$SIM_ROOT/dut.shm"
-    rm -f "$SIM_ROOT/layer_window.txt"
-    (
-        cd "$SIM_ROOT"
-        xrun -f args.txt -sdf_cmd_file sdf_cmd.cmd -maxdelays \
-            "${include_args[@]}" "${define_args[@]}" -define XRUN -define POWER_ACTIVITY \
-            "$CELL_MODELS" "$RAM_RTL" "$GATE_NETLIST" "$TB" -run -exit \
-            -l "$CASE_ROOT/gate-xrun.log" "${PLUSARGS[@]}"
-    )
-    [[ -s "$SIM_ROOT/dut.shm" ]] || { echo "$case_name gate run did not create SHM" >&2; exit 5; }
-    [[ -s "$SIM_ROOT/layer_window.txt" ]] || { echo "$case_name gate run did not create layer window" >&2; exit 5; }
-    mv "$SIM_ROOT/dut.shm" "$CASE_ROOT/gate.dut.shm"
-    cp "$SIM_ROOT/layer_window.txt" "$CASE_ROOT/gate-layer-window.txt"
-    grep -q 'LAYER_CYCLES=' "$CASE_ROOT/gate-xrun.log" || { echo "$case_name gate run did not reach layer completion" >&2; exit 6; }
-    echo "SIM_PASS $case_name" | tee -a "$RUN_ROOT/simulation-status.txt"
+    if [[ "$SIM_STAGE" != rtl ]]; then
+        (
+            cd "$SIM_ROOT"
+            xrun -f args.txt -sdf_cmd_file sdf_cmd.cmd -maxdelays \
+                "${include_args[@]}" "${define_args[@]}" -define XRUN -define POWER_ACTIVITY \
+                "$CELL_MODELS" "$RAM_RTL" "$GATE_NETLIST" "$TB" -run -exit \
+                -l "$CASE_ROOT/gate-xrun.log" "${PLUSARGS[@]}" \
+                "+ARTIFACT_DIR=$CASE_ROOT/gate" "+ACTIVITY_SHM=$CASE_ROOT/gate.dut.shm"
+        )
+        [[ -s "$CASE_ROOT/gate.dut.shm" ]] || { echo "$case_name gate run did not create SHM" >&2; exit 5; }
+        [[ -s "$CASE_ROOT/gate/layer_window.txt" ]] || { echo "$case_name gate run did not create layer window" >&2; exit 5; }
+        cp "$CASE_ROOT/gate/layer_window.txt" "$CASE_ROOT/gate-layer-window.txt"
+        grep -q 'NOTEBOOK_LAYER_PASS' "$CASE_ROOT/gate-xrun.log" || { echo "$case_name gate full-layer golden check missing" >&2; exit 6; }
+    fi
+    echo "SIM_${SIM_STAGE^^}_PASS $case_name" | tee -a "$RUN_ROOT/simulation-status.txt"
 done

@@ -211,6 +211,7 @@ def main() -> int:
         "config_words": len(regs),
         "controller_config_words": len(controller_writes),
         "dram_bytes": int(dram.size),
+        "output_bytes": int(dram.size - dram_offsets[2]),
         "ifmap_words": len(a_words),
         "weight_words": len(b_words),
         "output_words": len(c_words),
@@ -244,7 +245,13 @@ def main() -> int:
         "sha256": {name: sha256(outdir / name) for name in files},
     }
     (outdir / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    (outdir / "run.env").write_text("".join(f"{key.upper()}={value}\n" for key, value in counts.items()))
+    env_values = {
+        **counts,
+        "dram_a_offset": int(dram_offsets[0]),
+        "dram_b_offset": int(dram_offsets[1]),
+        "dram_c_offset": int(dram_offsets[2]),
+    }
+    (outdir / "run.env").write_text("".join(f"{key.upper()}={value}\n" for key, value in env_values.items()))
     print(json.dumps(manifest, indent=2, sort_keys=True))
     return 0
 
