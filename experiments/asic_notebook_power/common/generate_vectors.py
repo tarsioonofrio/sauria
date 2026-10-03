@@ -21,37 +21,37 @@ from src.hw_versions import get_params  # noqa: E402
 PROFILES = {
     "fp16_8x16": {
         "version": "FP16_8x16",
-        "memory_depths": (16384, 8192, 16384),
+        # Keep the SRAM capacities from hw_versions.get_params used by the
+        # notebooks. These are word depths, not complete-layer capacities.
+        "memory_depths": (2048, 1024, 2048),
         # SRAM A is Y lanes, SRAM B is X lanes, and SRAM C is Y lanes.
         "lanes": (16, 8, 8),
         "cases": {
             "conv-small": {
                 "shapes": ([32, 10, 10], [32, 32, 3, 3], [32, 8, 8]),
-                # Keep the whole layer in one resident tile. The ASIC testbench
-                # performs one start and does not model notebook host reloads.
-                "tiling": {"C_tile_shape": [32, 8, 8], "tile_cin": 32, "X_used": 16, "Y_used": 8},
+                "tiling": {"C_tile_shape": [32, 4, 8], "tile_cin": 32, "X_used": 16, "Y_used": 8},
                 "seed": 20261003,
             },
             "conv-large": {
                 "shapes": ([64, 34, 34], [128, 64, 3, 3], [128, 32, 32]),
-                "tiling": {"C_tile_shape": [128, 32, 32], "tile_cin": 64, "loop_order": 1, "X_used": 16, "Y_used": 8},
+                "tiling": {"C_tile_shape": [32, 8, 32], "tile_cin": 32, "loop_order": 1, "X_used": 16, "Y_used": 8},
                 "seed": 20261004,
             },
         },
     },
     "int8_32x32": {
         "version": "int8_32x32",
-        "memory_depths": (16384, 16384, 16384),
+        "memory_depths": (2048, 2048, 1024),
         "lanes": (32, 32, 32),
         "cases": {
             "conv": {
                 "shapes": ([64, 66, 66], [64, 64, 3, 3], [64, 64, 64]),
-                "tiling": {"C_tile_shape": [64, 64, 64], "tile_cin": 64, "X_used": 32, "Y_used": 32},
+                "tiling": {"C_tile_shape": [64, 8, 64], "tile_cin": 64, "X_used": 32, "Y_used": 32},
                 "seed": 20261005,
             },
             "gemm": {
                 "shapes": ([512, 1, 256], [512, 512, 1, 1], [512, 1, 256]),
-                "tiling": {"C_tile_shape": [512, 1, 256], "tile_cin": 512, "X_used": 32, "Y_used": 32},
+                "tiling": {"C_tile_shape": [128, 1, 256], "tile_cin": 256, "X_used": 32, "Y_used": 32},
                 "seed": 20261006,
             },
         },
