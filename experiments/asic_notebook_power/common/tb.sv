@@ -359,6 +359,7 @@ module tb;
                 dma_w_pending <= 1'b0;
                 dma_b_valid <= 1'b1;
                 dma_b_resp <= 2'b00;
+                $display("DMA_AXI_WRITE offset=%02x data=%08x strb=%x bready=%b job_start=%b irq_pending=%b", write_addr[7:0], write_data, write_strb, dma_b_ready, dma_job_start, dma_irq_pending_q);
                 case (write_addr[7:0])
                     DMA_CFG_IRQ_MASK: dma_irq_mask_q <= write_data;
                     DMA_CFG_IRQ_STATUS: begin
@@ -377,6 +378,10 @@ module tb;
 
             if (dma_irq_set != 2'b00)
                 dma_irq_pending_q <= dma_irq_pending_q | dma_irq_set;
+            if (dma_irq_set != 2'b00)
+                $display("DMA_IRQ_SET set=%b mask=%08x pending_before=%b", dma_irq_set, dma_irq_mask_q, dma_irq_pending_q);
+            if (dma_b_valid && dma_b_ready)
+                $display("DMA_AXI_B_HANDSHAKE resp=%b irq_pending=%b", dma_b_resp, dma_irq_pending_q);
         end
     end
 
@@ -447,7 +452,11 @@ module tb;
         controller_write(32'h4000_0000, 32'h0000_0001);
 
         while ((layer_done !== 1'b1) && (layer_cycles < max_cycles_arg)) @(posedge clk);
-        if (layer_done !== 1'b1) $fatal(1, "layer timed out after %0d cycles; DMA jobs=%0d", layer_cycles, dma_jobs);
+        if (layer_done !== 1'b1) begin
+            $display("TIMEOUT_DEBUG ctrl_start=%b ctrl_ready=%b ctrl_done=%b if_state=%0d dma_state=%0d dma_sub_state=%0d first_dma=%b goto_sauria=%b dma_irq_inputs=%b%b irq_mask=%08x irq_pending=%b dma_bvalid=%b dma_bready=%b dma_aw_pending=%b dma_w_pending=%b", dut.df_controller_i.start_q, dut.df_controller_i.ready_q, dut.df_controller_i.done_q, dut.df_controller_i.sauria_interface_I.state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.sub_state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.first_dma_iter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.goto_sync_sauria, dma_reader_interrupt, dma_writer_interrupt, dma_irq_mask_q, dma_irq_pending_q, dma_b_valid, dma_b_ready, dma_aw_pending, dma_w_pending);
+            $display("DMA_FSM_DEBUG next=%0d first_tile=%b addr=%08x wdata=%08x addr_sent=%b data_sent=%b start=%b start_wresp_sync=%b wresp_sync=%b wresp_count=%0d btt=%0d local_addr=%08x y=%0d/%0d z=%0d/%0d ycounter=%0d zcounter=%0d last_iter=%b ifmaps_change=%b weights_change=%b psums_change=%b", dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.next_action, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.first_tile, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wdata, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.data_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start_wresp_sync, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_sync_state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_counter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.btt, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.local_SRAM_addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.y, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ylim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.z, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zlim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ycounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zcounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.last_iter_sig, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ifmaps_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.weights_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.psums_change);
+            $fatal(1, "layer timed out after %0d cycles; DMA jobs=%0d", layer_cycles, dma_jobs);
+        end
         measure_active = 1'b0;
         // layer_done is asserted only after the controller has completed its
         // final external write. End the activity window here, before golden
