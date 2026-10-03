@@ -463,10 +463,10 @@ always_comb begin
         if (final_dil_pat[i]) begin
             target_array[i] = elm_idx_array[i] + regs_used_idx + 1;     // +1 to distinguish from zeros (unused)
 
-            // Advance only past elements that are accepted by the currently free registers.
-            // When elm_number exceeds n_free_regs, later elements in this SRAM word
-            // must remain available for the next feeder cycle.
-            if (target_array[i]<=new_active_idx) begin
+            // Advance only past the elements accepted by the currently free registers.
+            // Use the element ordinal instead of target_array: target indices can wrap
+            // when a partial sum buffer is at the end of its range.
+            if (elm_idx_array[i] < elm_number_sat) begin
                 last_rd = i;
             end
 
