@@ -48,6 +48,12 @@ controller completes the layer. It records each DMA job, traffic count, and
 the activity window from the controller start through `layer_done`, before
 testbench golden readback.
 
+The experimental core wrapper buffers AXI-Lite AW and W independently because
+the native controller sends them in separate states while the local register
+adapter accepts a paired write. It also holds each B response until the
+controller consumes it, so a delayed BREADY does not block that write from
+reaching the register adapter or lose the start response.
+
 `DRAM_BANDWIDTH` is one shared cap for the external memory model. A single DMA
 command is serviced at a time, so IFMAP, weights, partial sums, and outputs do
 not receive separate external channels. `DRAM_LATENCY` is charged for each

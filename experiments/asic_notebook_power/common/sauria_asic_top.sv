@@ -253,8 +253,70 @@ module sauria_cfg_axil_to_logic #(
 
     cfg_req_lite_t cfg_req;
     cfg_resp_lite_t cfg_resp;
-    `AXI_LITE_ASSIGN_TO_REQ(cfg_req, axi)
-    `AXI_LITE_ASSIGN_FROM_RESP(axi, cfg_resp)
+
+    // This experimental core wrapper adapts the controller's independent
+    // AXI-Lite AW/W sequencing to axi_lite_2ram, whose write target accepts
+    // the two channels together. Hold one payload from each channel until a
+    // complete pair is available, then keep the target BREADY asserted while
+    // a one-entry response slot is free. The controller may consume B later.
+    logic aw_pending_q;
+    logic w_pending_q;
+    logic b_pending_q;
+    aw_chan_lite_t aw_payload_q;
+    w_chan_lite_t w_payload_q;
+    axi_pkg::resp_t b_resp_q;
+
+    always_comb begin
+        cfg_req = '0;
+        cfg_req.aw_valid = aw_pending_q;
+        cfg_req.aw = aw_payload_q;
+        cfg_req.w_valid = w_pending_q;
+        cfg_req.w = w_payload_q;
+        cfg_req.b_ready = !b_pending_q;
+        cfg_req.ar_valid = axi.ar_valid;
+        cfg_req.ar.addr = axi.ar_addr;
+        cfg_req.ar.prot = axi.ar_prot;
+        cfg_req.r_ready = axi.r_ready;
+
+        axi.aw_ready = !aw_pending_q && !b_pending_q;
+        axi.w_ready = !w_pending_q && !b_pending_q;
+        axi.b_valid = b_pending_q;
+        axi.b_resp = b_resp_q;
+        axi.ar_ready = cfg_resp.ar_ready;
+        axi.r_valid = cfg_resp.r_valid;
+        axi.r_data = cfg_resp.r.data;
+        axi.r_resp = cfg_resp.r.resp;
+    end
+
+    always_ff @(posedge clk or negedge rstn) begin
+        if (!rstn) begin
+            aw_pending_q <= 1'b0;
+            w_pending_q <= 1'b0;
+            b_pending_q <= 1'b0;
+            aw_payload_q <= '0;
+            w_payload_q <= '0;
+            b_resp_q <= axi_pkg::RESP_OKAY;
+        end else begin
+            if (axi.aw_valid && axi.aw_ready) begin
+                aw_payload_q.addr <= axi.aw_addr;
+                aw_payload_q.prot <= axi.aw_prot;
+                aw_pending_q <= 1'b1;
+            end
+            if (axi.w_valid && axi.w_ready) begin
+                w_payload_q.data <= axi.w_data;
+                w_payload_q.strb <= axi.w_strb;
+                w_pending_q <= 1'b1;
+            end
+            if (cfg_req.aw_valid && cfg_resp.aw_ready) aw_pending_q <= 1'b0;
+            if (cfg_req.w_valid && cfg_resp.w_ready) w_pending_q <= 1'b0;
+
+            if (cfg_resp.b_valid && cfg_req.b_ready) begin
+                b_resp_q <= cfg_resp.b.resp;
+                b_pending_q <= 1'b1;
+            end
+            if (axi.b_valid && axi.b_ready) b_pending_q <= 1'b0;
+        end
+    end
 
     axi_lite_2ram #(
         .AxiAddrWidth (ADDR_W),
