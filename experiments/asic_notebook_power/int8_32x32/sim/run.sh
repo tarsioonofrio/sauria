@@ -47,11 +47,19 @@ while IFS= read -r include_dir; do
 done < "$CONFIG_ROOT/list-incdir.txt"
 
 case_list=()
-if [[ "$CONFIG_ROOT" == */fp16_8x16 ]]; then
+if [[ -n "${SIM_CASES:-}" ]]; then
+    read -r -a case_list <<< "$SIM_CASES"
+elif [[ "$CONFIG_ROOT" == */fp16_8x16 ]]; then
     case_list=(conv-small conv-large)
 else
     case_list=(conv gemm)
 fi
+for case_name in "${case_list[@]}"; do
+    case "$(basename "$CONFIG_ROOT"):$case_name" in
+        fp16_8x16:conv-small|fp16_8x16:conv-large|int8_32x32:conv|int8_32x32:gemm) ;;
+        *) echo "Unsupported SIM_CASES entry for $(basename "$CONFIG_ROOT"): $case_name" >&2; exit 2 ;;
+    esac
+done
 mkdir -p "$RUN_ROOT"
 [[ -x "$PYTHON" ]] || { echo "Missing Python environment: $PYTHON" >&2; exit 2; }
 if [[ "$SIM_STAGE" != rtl ]]; then

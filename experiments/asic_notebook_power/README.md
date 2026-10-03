@@ -82,3 +82,8 @@ Run one profile at a time in a task-specific checkout on Paxos through SSH and
 `logical/results/<run_id>/`, `sim/run_artifacts/<run_id>/<case>/`,
 `power/results/<run_id>/<case>/`, and `run_metadata/<run_id>/`. Use a
 task-specific `TMPDIR` under `/sim` for large tool temporaries.
+
+The simulation runner executes both notebook cases in its profile by default.
+Set `SIM_CASES` to one supported case (`conv-small`, `conv-large`, `conv`, or
+`gemm`) to run a single case at a time; whitespace-separated case names may be
+used to select more than one case.
