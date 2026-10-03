@@ -11,6 +11,7 @@ RAM_RTL="$GIT_ROOT/RTL/src/sauria_core/sram/ram_inferred.sv"
 GATE_NETLIST="$RESULTS/gate_level/sauria_asic_top_logic_mapped.v"
 CELL_MODELS=/pdk/tsmc/PDK28/PDK_TSMC28_bv/tcbn28hpcplusbwp30p140_190a/TSMCHOME/digital/Front_End/verilog/tcbn28hpcplusbwp30p140_110a/tcbn28hpcplusbwp30p140.v
 TB_ENTRY=$(awk 'NF && $1 !~ /^#/ {print $1; exit}' "$CONFIG_ROOT/testbench-file.txt")
+SIM_PYTHON=${SAURIA_PYTHON:-python3}
 if [[ -z "$TB_ENTRY" ]]; then
     echo "testbench-file.txt is empty" >&2
     exit 2
@@ -22,7 +23,7 @@ module purge
 module use /soft64/modulefiles
 module load cadence/xcelium/2303
 
-python3 "$SIM_ROOT/generate_vectors.py" --out "$SIM_ROOT/vectors"
+"$SIM_PYTHON" "$SIM_ROOT/generate_vectors.py" --out "$SIM_ROOT/vectors"
 mkdir -p "$RUN_ROOT"
 
 rtl_files=()
