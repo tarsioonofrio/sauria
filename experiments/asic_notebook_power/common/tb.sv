@@ -229,14 +229,14 @@ module tb;
                 dut.sauria_logic_i.mc_act_done, dut.sauria_logic_i.mc_act_til_done,
                 dut.sauria_logic_i.mc_act_fifo_empty, dut.sauria_logic_i.mc_act_fifo_full,
                 dut.sauria_logic_i.mc_act_stall, dut.sauria_logic_i.af_act_feeder_en,
-                dut.sauria_logic_i.af_act_feeder_i.o_srama_rden,
-                dut.sauria_logic_i.af_act_feeder_i.o_srama_addr);
+                dut.sauria_logic_i.o_srama_rden,
+                dut.sauria_logic_i.o_srama_addr);
             $display("DEBUG_WEI done=%b til_done=%b fifo_empty=%b fifo_full=%b stall=%b feeder_en=%b rden=%b addr=%0d",
                 dut.sauria_logic_i.mc_wei_done, dut.sauria_logic_i.mc_wei_til_done,
                 dut.sauria_logic_i.mc_wei_fifo_empty, dut.sauria_logic_i.mc_wei_fifo_full,
                 dut.sauria_logic_i.mc_wei_stall, dut.sauria_logic_i.wf_wei_feeder_en,
-                dut.sauria_logic_i.weight_feeder_i.o_sramb_rden,
-                dut.sauria_logic_i.weight_feeder_i.o_sramb_addr);
+                dut.sauria_logic_i.o_sramb_rden,
+                dut.sauria_logic_i.o_sramb_addr);
             $display("DEBUG_CTRL ctx_state=%0d feed_state=%0d start=%b pipeline_en=%b outbuf_done=%b shift_done=%b",
                 dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_q,
                 dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q,
