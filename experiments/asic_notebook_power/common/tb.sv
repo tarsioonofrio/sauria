@@ -110,6 +110,23 @@ module tb;
     integer sramc_host_trace_fd = 0;
     integer sramc_host_read_count = 0;
     integer sramc_dump_fd = 0;
+    integer sram_read_trace_fd = 0;
+    integer ifmap_push_trace_fd = 0;
+    integer sram_trace_cycle = 0;
+    integer srama_read_req_id = 0;
+    integer sramb_read_req_id = 0;
+    integer srama_pending_req_id = 0;
+    integer sramb_pending_req_id = 0;
+    integer srama_pending_valid = 0;
+    integer sramb_pending_valid = 0;
+    logic srama_pending_select = 1'b0;
+    logic sramb_pending_select = 1'b0;
+    logic [sauria_pkg::ADRA_W-1:0] srama_pending_addr = '0;
+    logic [sauria_pkg::ADRB_W-1:0] sramb_pending_addr = '0;
+    logic [sauria_pkg::ADRA_W-1:0] srama_pending_bank0_addr = '0;
+    logic [sauria_pkg::ADRA_W-1:0] srama_pending_bank1_addr = '0;
+    logic [sauria_pkg::ADRB_W-1:0] sramb_pending_bank0_addr = '0;
+    logic [sauria_pkg::ADRB_W-1:0] sramb_pending_bank1_addr = '0;
     integer dma_c_read_debug_count = 0;
     integer idx;
     integer byte_idx;
@@ -172,6 +189,180 @@ module tb;
                 dut.sram_top_i.SRAMC_i.wmask_1);
         end
     end
+
+    always @(negedge clk) begin
+        if (measure_active) sram_trace_cycle = sram_trace_cycle + 1;
+        else sram_trace_cycle = 0;
+    end
+
+    // Record accepted accelerator SRAM reads and pair each response with the
+    // request sampled on the previous edge. The inferred SRAM updates its
+    // output after the request edge, so this pre-NBA snapshot is the response
+    // to the pending request, not to a request sampled at this edge.
+    always @(posedge clk) begin
+        if (!measure_active) begin
+            srama_pending_valid = 0;
+            sramb_pending_valid = 0;
+        end else begin
+            if (sram_read_trace_fd != 0) begin
+                if (srama_pending_valid) begin
+                    $fdisplay(sram_read_trace_fd,
+                        "SRAM_READ_RSP cycle=%0d mem=A req_id=%0d req_select=%b req_addr=%0d req_bank0_addr=%0d req_bank1_addr=%0d raw_bank0=%0h raw_bank1=%0h raw_req_bank=%0h accel_mux_current=%0h top_q_current=%0h core_data_current=%0h",
+                        sram_trace_cycle, srama_pending_req_id, srama_pending_select,
+                        srama_pending_addr,
+                        srama_pending_bank0_addr,
+                        srama_pending_bank1_addr,
+                        dut.sram_top_i.SRAMA_i.outdata_0,
+                        dut.sram_top_i.SRAMA_i.outdata_1,
+                        srama_pending_select ? dut.sram_top_i.SRAMA_i.outdata_0 : dut.sram_top_i.SRAMA_i.outdata_1,
+                        dut.sram_top_i.SRAMA_i.accel_outdata_sel,
+                        dut.sram_top_i.srama_output_q,
+                        dut.sauria_logic_i.i_srama_data);
+                    srama_pending_valid = 0;
+                end
+                if (sramb_pending_valid) begin
+                    $fdisplay(sram_read_trace_fd,
+                        "SRAM_READ_RSP cycle=%0d mem=B req_id=%0d req_select=%b req_addr=%0d req_bank0_addr=%0d req_bank1_addr=%0d raw_bank0=%0h raw_bank1=%0h raw_req_bank=%0h accel_mux_current=%0h top_q_current=%0h core_data_current=%0h",
+                        sram_trace_cycle, sramb_pending_req_id, sramb_pending_select,
+                        sramb_pending_addr,
+                        sramb_pending_bank0_addr,
+                        sramb_pending_bank1_addr,
+                        dut.sram_top_i.SRAMB_i.outdata_0,
+                        dut.sram_top_i.SRAMB_i.outdata_1,
+                        sramb_pending_select ? dut.sram_top_i.SRAMB_i.outdata_0 : dut.sram_top_i.SRAMB_i.outdata_1,
+                        dut.sram_top_i.SRAMB_i.accel_outdata_sel,
+                        dut.sram_top_i.sramb_output_q,
+                        dut.sauria_logic_i.i_sramb_data);
+                    sramb_pending_valid = 0;
+                end
+
+                if ((dut.sram_top_i.SRAMA_i.rden_0 && !dut.sram_top_i.SRAMA_i.cen_0 && dut.sram_top_i.SRAMA_i.rdwen_0) ||
+                    (dut.sram_top_i.SRAMA_i.rden_1 && !dut.sram_top_i.SRAMA_i.cen_1 && dut.sram_top_i.SRAMA_i.rdwen_1)) begin
+                    srama_read_req_id = srama_read_req_id + 1;
+                    $fdisplay(sram_read_trace_fd,
+                        "SRAM_READ_REQ cycle=%0d mem=A req_id=%0d core_rden=%b core_addr=%0d select=%b rden0=%b cen0=%b rdwen0=%b addr0=%0d rden1=%b cen1=%b rdwen1=%b addr1=%0d raw0_pre=%0h raw1_pre=%0h accel_mux_pre=%0h top_q_pre=%0h core_data_pre=%0h",
+                        sram_trace_cycle, srama_read_req_id,
+                        dut.sauria_logic_i.o_srama_rden,
+                        dut.sauria_logic_i.o_srama_addr,
+                        dut.sram_top_i.i_select[0],
+                        dut.sram_top_i.SRAMA_i.rden_0,
+                        dut.sram_top_i.SRAMA_i.cen_0,
+                        dut.sram_top_i.SRAMA_i.rdwen_0,
+                        dut.sram_top_i.SRAMA_i.addr_0,
+                        dut.sram_top_i.SRAMA_i.rden_1,
+                        dut.sram_top_i.SRAMA_i.cen_1,
+                        dut.sram_top_i.SRAMA_i.rdwen_1,
+                        dut.sram_top_i.SRAMA_i.addr_1,
+                        dut.sram_top_i.SRAMA_i.outdata_0,
+                        dut.sram_top_i.SRAMA_i.outdata_1,
+                        dut.sram_top_i.SRAMA_i.accel_outdata_sel,
+                        dut.sram_top_i.srama_output_q,
+                        dut.sauria_logic_i.i_srama_data);
+                    srama_pending_valid = 1;
+                    srama_pending_req_id = srama_read_req_id;
+                    srama_pending_select = dut.sram_top_i.i_select[0];
+                    srama_pending_addr = dut.sauria_logic_i.o_srama_addr;
+                    srama_pending_bank0_addr = dut.sram_top_i.SRAMA_i.addr_0;
+                    srama_pending_bank1_addr = dut.sram_top_i.SRAMA_i.addr_1;
+                end
+                if ((dut.sram_top_i.SRAMB_i.rden_0 && !dut.sram_top_i.SRAMB_i.cen_0 && dut.sram_top_i.SRAMB_i.rdwen_0) ||
+                    (dut.sram_top_i.SRAMB_i.rden_1 && !dut.sram_top_i.SRAMB_i.cen_1 && dut.sram_top_i.SRAMB_i.rdwen_1)) begin
+                    sramb_read_req_id = sramb_read_req_id + 1;
+                    $fdisplay(sram_read_trace_fd,
+                        "SRAM_READ_REQ cycle=%0d mem=B req_id=%0d core_rden=%b core_addr=%0d select=%b rden0=%b cen0=%b rdwen0=%b addr0=%0d rden1=%b cen1=%b rdwen1=%b addr1=%0d raw0_pre=%0h raw1_pre=%0h accel_mux_pre=%0h top_q_pre=%0h core_data_pre=%0h",
+                        sram_trace_cycle, sramb_read_req_id,
+                        dut.sauria_logic_i.o_sramb_rden,
+                        dut.sauria_logic_i.o_sramb_addr,
+                        dut.sram_top_i.i_select[1],
+                        dut.sram_top_i.SRAMB_i.rden_0,
+                        dut.sram_top_i.SRAMB_i.cen_0,
+                        dut.sram_top_i.SRAMB_i.rdwen_0,
+                        dut.sram_top_i.SRAMB_i.addr_0,
+                        dut.sram_top_i.SRAMB_i.rden_1,
+                        dut.sram_top_i.SRAMB_i.cen_1,
+                        dut.sram_top_i.SRAMB_i.rdwen_1,
+                        dut.sram_top_i.SRAMB_i.addr_1,
+                        dut.sram_top_i.SRAMB_i.outdata_0,
+                        dut.sram_top_i.SRAMB_i.outdata_1,
+                        dut.sram_top_i.SRAMB_i.accel_outdata_sel,
+                        dut.sram_top_i.sramb_output_q,
+                        dut.sauria_logic_i.i_sramb_data);
+                    sramb_pending_valid = 1;
+                    sramb_pending_req_id = sramb_read_req_id;
+                    sramb_pending_select = dut.sram_top_i.i_select[1];
+                    sramb_pending_addr = dut.sauria_logic_i.o_sramb_addr;
+                    sramb_pending_bank0_addr = dut.sram_top_i.SRAMB_i.addr_0;
+                    sramb_pending_bank1_addr = dut.sram_top_i.SRAMB_i.addr_1;
+                end
+
+                if (dut.sauria_logic_i.ifmap_feeder_i.pipeline_regs_en) begin
+                    $fdisplay(sram_read_trace_fd,
+                        "IFMAP_FEED_SAMPLE cycle=%0d addr=%0d core_data_sampled=%0h data_q_pre=%0h feeder_mux_pre=%0h x=%0d y=%0d ch=%0d til_x=%0d til_y=%0d sram_idx=%0d glob_woffs=%0d xov=%b valid=%b finalpush=%b full=%b stall=%b update=%b",
+                        sram_trace_cycle,
+                        dut.sauria_logic_i.o_srama_addr,
+                        dut.sauria_logic_i.i_srama_data,
+                        dut.sauria_logic_i.ifmap_feeder_i.sram_data_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.srama_data_mux,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.x_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.y_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.ch_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_x_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_y_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.sram_idx_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.glob_woffs,
+                        dut.sauria_logic_i.ifmap_feeder_i.x_transition_flag,
+                        dut.sauria_logic_i.ifmap_feeder_i.valid_data,
+                        dut.sauria_logic_i.ifmap_feeder_i.i_finalpush,
+                        dut.sauria_logic_i.ifmap_feeder_i.fifo_full_any,
+                        dut.sauria_logic_i.ifmap_feeder_i.stall_any,
+                        dut.sauria_logic_i.ifmap_feeder_i.feeders_update);
+                end
+            end
+        end
+    end
+
+    // One event record per lane on an accepted FIFO push (or attempted push
+    // while full). This exposes ordering and state without dumping idle cycles.
+    genvar trace_lane;
+    generate
+        for (trace_lane = 0; trace_lane < sauria_pkg::Y; trace_lane = trace_lane + 1) begin : ifmap_push_trace
+            always @(posedge clk) begin
+                if (measure_active && ifmap_push_trace_fd != 0 &&
+                    (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.fifo_push ||
+                     (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.n_free_regs == 0 &&
+                      dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_feeder_en))) begin
+                    $fdisplay(ifmap_push_trace_fd,
+                        "IFMAP_FIFO_PUSH cycle=%0d lane=%0d accepted=%b full=%b lane_en=%b update=%b valid=%b finalpush=%b outbounds=%b x=%0d y=%0d ch=%0d til_x=%0d til_y=%0d sram_idx=%0d glob_woffs=%0d loc_woffs=%0d offset=%0d shift_idx=%0d read_ptr=%0d regs_active=%0h mux=%0h din=%0h stall=%b feeder_full=%b fifo_full=%b",
+                        sram_trace_cycle, trace_lane,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.fifo_push &&
+                            !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_full,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_full,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_feeder_en,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_update,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_valid_data,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_finalpush,
+                        dut.sauria_logic_i.ifmap_feeder_i.outbounds,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.x_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.y_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.ch_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_x_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_y_idx,
+                        dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.sram_idx_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.glob_woffs,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.i_loc_woffs,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.woffs_init_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.shift_idx_cnt_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.read_ptr_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.regs_active_q,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.mux_control_array,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.feed_data_manager_i.fifo_din,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.o_stall,
+                        dut.sauria_logic_i.ifmap_feeder_i.fifo_full_any,
+                        dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_full);
+                end
+            end
+        end
+    endgenerate
 
     assign dma_aw_ready = !dma_aw_pending && !dma_b_valid;
     assign dma_w_ready = !dma_w_pending && !dma_b_valid;
@@ -717,14 +908,23 @@ module tb;
 
         repeat (4) @(posedge clk);
         layer_cycles = 0;
+        sram_trace_cycle = 0;
         measure_active = 1'b1;
         @(negedge clk);
         layer_start_ns = $realtime;
+        srama_read_req_id = 0;
+        sramb_read_req_id = 0;
+        srama_pending_valid = 0;
+        sramb_pending_valid = 0;
         psm_trace_fd = $fopen({artifact_dir, "/sramc-write-trace.txt"}, "w");
         if (psm_trace_fd == 0) $fatal(1, "cannot create SRAM C write trace");
         $fdisplay(psm_trace_fd, "# PSM_C_WRITE cycle=<n> index=<n> addr=<n> mask=<bits> data=<hex> ctx=<n> scan=<n>");
         sramc_host_trace_fd = $fopen({artifact_dir, "/sramc-host-read-trace.txt"}, "w");
         if (sramc_host_trace_fd == 0) $fatal(1, "cannot create SRAM C host read trace");
+        sram_read_trace_fd = $fopen({artifact_dir, "/accelerator-sram-read-trace.txt"}, "w");
+        if (sram_read_trace_fd == 0) $fatal(1, "cannot create accelerator SRAM read trace");
+        ifmap_push_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-push-trace.txt"}, "w");
+        if (ifmap_push_trace_fd == 0) $fatal(1, "cannot create IFMAP FIFO push trace");
         fd = $fopen({artifact_dir, "/layer_window.txt"}, "w");
         if (fd == 0) $fatal(1, "cannot create layer window file");
         $fdisplay(fd, "%0.3f", layer_start_ns);
@@ -749,6 +949,10 @@ module tb;
         measure_active = 1'b0;
         $fclose(psm_trace_fd);
         $fclose(sramc_host_trace_fd);
+        $fclose(sram_read_trace_fd);
+        $fclose(ifmap_push_trace_fd);
+        sram_read_trace_fd = 0;
+        ifmap_push_trace_fd = 0;
         sramc_host_trace_fd = 0;
         sramc_dump_fd = $fopen({artifact_dir, "/srama-bank0-final.mem"}, "w");
         if (sramc_dump_fd == 0) $fatal(1, "cannot create SRAM A bank 0 dump");
