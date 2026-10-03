@@ -229,7 +229,10 @@ module tb;
                                 input logic [31:0] byte_count);
         integer offset;
         integer lane;
+        integer lane_offset;
+        integer chunk_bytes;
         integer dram_beats;
+        integer sram_beats;
         integer beat_cycles;
         begin
             if (byte_count == 0) $fatal(1, "DMA command has zero BTT");
@@ -243,8 +246,6 @@ module tb;
                 local_addr = reader_addr;
                 external_addr = writer_addr;
             end
-            if ((external_addr & (MEM_BYTES-1)) != 0 || (local_addr & (MEM_BYTES-1)) != 0)
-                $fatal(1, "notebook DMA transfer is not %0d-byte aligned: external=%08x local=%08x", MEM_BYTES, external_addr, local_addr);
             if (external_addr + byte_count > dram_bytes)
                 $fatal(1, "DMA external range outside DRAM image: %08x + %0d > %0d", external_addr, byte_count, dram_bytes);
             if (copy_from_dram) begin
@@ -265,19 +266,25 @@ module tb;
             // The modeled SRAM host read has two registered stages. Its
             // transfer rate is an additional limit for local-to-DRAM writes.
             if (!copy_from_dram && beat_cycles < 2) beat_cycles = 2;
-            dram_beats = (byte_count + MEM_BYTES - 1) / MEM_BYTES;
+            dram_beats = ((external_addr & (MEM_BYTES-1)) + byte_count + MEM_BYTES - 1) / MEM_BYTES;
+            sram_beats = ((local_addr & (MEM_BYTES-1)) + byte_count + MEM_BYTES - 1) / MEM_BYTES;
             latency_cycles = `DRAM_LATENCY;
             repeat (latency_cycles) @(posedge clk);
-            dma_service_cycles = dma_service_cycles + latency_cycles + dram_beats * beat_cycles + (copy_from_dram ? 0 : 2);
+            dma_service_cycles = dma_service_cycles + latency_cycles + dram_beats * beat_cycles + (copy_from_dram ? 0 : sram_beats * 2);
 
             if (copy_from_dram) begin
-                for (offset = 0; offset < byte_count; offset = offset + MEM_BYTES) begin
-                    valid_bytes = ((byte_count - offset) < MEM_BYTES) ? (byte_count - offset) : MEM_BYTES;
+                // The realigner accepts byte offsets on both sides. Build each
+                // SRAM host-port word at its aligned address and place the
+                // stream bytes into the lanes selected by the local offset.
+                for (offset = 0; offset < byte_count; offset = offset + chunk_bytes) begin
+                    lane_offset = (local_addr + offset) & (MEM_BYTES-1);
+                    chunk_bytes = ((byte_count - offset) < (MEM_BYTES - lane_offset)) ?
+                                  (byte_count - offset) : (MEM_BYTES - lane_offset);
                     beat_data = '0;
                     beat_mask = '0;
-                    for (lane = 0; lane < valid_bytes; lane = lane + 1) begin
-                        beat_mask[lane*8 +: 8] = 8'hff;
-                        beat_data[lane*8 +: 8] = dram[external_addr + offset + lane];
+                    for (lane = 0; lane < chunk_bytes; lane = lane + 1) begin
+                        beat_mask[(lane_offset+lane)*8 +: 8] = 8'hff;
+                        beat_data[(lane_offset+lane)*8 +: 8] = dram[external_addr + offset + lane];
                     end
                     // The realigner can finish producing the final word while
                     // that word is still held in its downstream FIFO. Model
@@ -285,7 +292,7 @@ module tb;
                     // interrupts together at command completion.
                     if (offset + MEM_BYTES >= byte_count) pulse_dma_irq(2'b01);
                     @(negedge clk);
-                    mem_addr = local_addr + offset;
+                    mem_addr = (local_addr + offset) & ~(MEM_BYTES-1);
                     mem_data = beat_data;
                     mem_wmask = beat_mask;
                     mem_wren = 1'b1;
@@ -293,7 +300,7 @@ module tb;
                     #1ps;
                     mem_wren = 1'b0;
                     mem_wmask = '0;
-                    for (lane = 0; lane < valid_bytes; lane = lane + 1)
+                    for (lane = 0; lane < chunk_bytes; lane = lane + 1)
                         begin
                             dma_ext_read_bytes = dma_ext_read_bytes + 1;
                             if (external_addr + offset + lane >= dram_a_offset && external_addr + offset + lane < dram_b_offset)
@@ -309,10 +316,12 @@ module tb;
                 // sram_top's host read has two registered stages. The model
                 // holds one local read in flight and honors that response
                 // latency before returning the corresponding DRAM write.
-                for (offset = 0; offset < byte_count; offset = offset + MEM_BYTES) begin
-                    valid_bytes = ((byte_count - offset) < MEM_BYTES) ? (byte_count - offset) : MEM_BYTES;
+                for (offset = 0; offset < byte_count; offset = offset + chunk_bytes) begin
+                    lane_offset = (local_addr + offset) & (MEM_BYTES-1);
+                    chunk_bytes = ((byte_count - offset) < (MEM_BYTES - lane_offset)) ?
+                                  (byte_count - offset) : (MEM_BYTES - lane_offset);
                     @(negedge clk);
-                    mem_addr = local_addr + offset;
+                    mem_addr = (local_addr + offset) & ~(MEM_BYTES-1);
                     mem_rden = 1'b1;
                     @(posedge clk);
                     #1ps;
@@ -321,9 +330,10 @@ module tb;
                     #1ps;
                     beat_data = mem_rdata;
                     if (offset + MEM_BYTES >= byte_count) pulse_dma_irq(2'b01);
-                    for (lane = 0; lane < valid_bytes; lane = lane + 1)
-                        dram[external_addr + offset + lane] = beat_data[lane*8 +: 8];
-                    dma_ext_write_bytes = dma_ext_write_bytes + valid_bytes;
+                    for (lane = 0; lane < chunk_bytes; lane = lane + 1)
+                        dram[external_addr + offset + lane] = beat_data[(lane_offset+lane)*8 +: 8];
+                    dma_ext_write_bytes = dma_ext_write_bytes + chunk_bytes;
+                    repeat (beat_cycles - 1) @(posedge clk);
                 end
             end
 
