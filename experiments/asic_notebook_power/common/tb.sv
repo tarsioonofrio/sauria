@@ -629,9 +629,12 @@ module tb;
             // accepted register slots, and SRAM source together so skipped
             // subwords can be distinguished from tag/retiming errors.
             always @(posedge clk) begin
-                if (measure_active && ifmap_dm_trace_fd != 0 && trace_lane < 2 &&
-                    ifmap_sram_data_ch_q == 180 &&
-                    ifmap_sram_data_idx_q >= 180 && ifmap_sram_data_idx_q <= 210) begin
+                if (measure_active && ifmap_dm_trace_fd != 0 &&
+                    ((trace_lane < 2 && ifmap_sram_data_ch_q == 180 &&
+                      ifmap_sram_data_idx_q >= 180 && ifmap_sram_data_idx_q <= 210) ||
+                     (trace_lane == 6 &&
+                      (ifmap_sram_data_ch_q == 1800 || ifmap_sram_data_ch_q == 1860) &&
+                      ifmap_sram_data_idx_q >= 1760 && ifmap_sram_data_idx_q <= 1900))) begin
                     $fdisplay(ifmap_dm_trace_fd,
                         "IFMAP_DM_SELECT cycle=%0d lane=%0d req=%0d addr=%0d bank0=%0d bank1=%0d select=%b src_cycle=%0d src_x=%0d src_y=%0d src_ch=%0d src_idx=%0d src_woffs=%0d sram_data=%0h elements=%0h feeder_en=%b update=%b valid=%b pipeline_regs_en=%b stall=%b fifo_full=%b fifo_push=%b read_ptr_q=%0d read_ptr_d=%0d shift_idx_q=%0d shift_idx_d=%0d woffs_init_q=%0d woffs_init_d=%0d dil_mask=%0h elm_number=%0d n_free_regs=%0d elm_number_sat=%0d regs_used_idx=%0d new_active_idx=%0d regs_active_q=%0h regs_active_new=%0h regs_en_d=%0h target=%0h mux=%0h regs_d=%0h",
                         sram_trace_cycle, trace_lane,
