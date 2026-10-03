@@ -352,6 +352,7 @@ module tb;
         logic aw_fire;
         logic w_fire;
         logic write_complete;
+        logic [1:0] irq_clear;
         logic reader_seen;
         logic writer_seen;
         logic [31:0] reader_addr_snapshot;
@@ -385,6 +386,7 @@ module tb;
             dma_job_start <= 1'b0;
         end else begin
             dma_job_start <= 1'b0;
+            irq_clear = '0;
             aw_fire = dma_aw_valid && dma_aw_ready;
             w_fire = dma_w_valid && dma_w_ready;
             write_complete = (dma_aw_pending || aw_fire) && (dma_w_pending || w_fire) && !dma_b_valid;
@@ -418,7 +420,7 @@ module tb;
                 case (write_addr[7:0])
                     DMA_CFG_IRQ_MASK: dma_irq_mask_q <= write_data;
                     DMA_CFG_IRQ_STATUS: begin
-                        if (write_strb[0]) dma_irq_pending_q <= dma_irq_pending_q & ~write_data[1:0];
+                        if (write_strb[0]) irq_clear = write_data[1:0];
                     end
                     DMA_CFG_READER_ADDR: dma_reader_addr_q <= write_data;
                     DMA_CFG_WRITER_ADDR: dma_writer_addr_q <= write_data;
@@ -463,10 +465,12 @@ module tb;
                 endcase
             end
 
-            if (dma_irq_set != 2'b00)
-                dma_irq_pending_q <= dma_irq_pending_q | dma_irq_set;
+            if (dma_irq_set != 2'b00 || irq_clear != 2'b00)
+                dma_irq_pending_q <= (dma_irq_pending_q & ~irq_clear) | dma_irq_set;
             if (dma_irq_set != 2'b00)
                 $display("DMA_IRQ_SET set=%b mask=%08x pending_before=%b", dma_irq_set, dma_irq_mask_q, dma_irq_pending_q);
+            if (irq_clear != 2'b00)
+                $display("DMA_IRQ_CLEAR clear=%b pending_before=%b set_same_cycle=%b", irq_clear, dma_irq_pending_q, dma_irq_set);
             if (dma_b_valid && dma_b_ready)
                 $display("DMA_AXI_B_HANDSHAKE resp=%b irq_pending=%b", dma_b_resp, dma_irq_pending_q);
         end
