@@ -750,6 +750,26 @@ module tb;
         $fclose(psm_trace_fd);
         $fclose(sramc_host_trace_fd);
         sramc_host_trace_fd = 0;
+        sramc_dump_fd = $fopen({artifact_dir, "/srama-bank0-final.mem"}, "w");
+        if (sramc_dump_fd == 0) $fatal(1, "cannot create SRAM A bank 0 dump");
+        for (idx = 0; idx < sauria_pkg::SRAMA_DEPTH; idx = idx + 1)
+            $fdisplay(sramc_dump_fd, "%0h", dut.sram_top_i.SRAMA_i.sram_0_i.mem[idx]);
+        $fclose(sramc_dump_fd);
+        sramc_dump_fd = $fopen({artifact_dir, "/srama-bank1-final.mem"}, "w");
+        if (sramc_dump_fd == 0) $fatal(1, "cannot create SRAM A bank 1 dump");
+        for (idx = 0; idx < sauria_pkg::SRAMA_DEPTH; idx = idx + 1)
+            $fdisplay(sramc_dump_fd, "%0h", dut.sram_top_i.SRAMA_i.sram_1_i.mem[idx]);
+        $fclose(sramc_dump_fd);
+        sramc_dump_fd = $fopen({artifact_dir, "/sramb-bank0-final.mem"}, "w");
+        if (sramc_dump_fd == 0) $fatal(1, "cannot create SRAM B bank 0 dump");
+        for (idx = 0; idx < sauria_pkg::SRAMB_DEPTH; idx = idx + 1)
+            $fdisplay(sramc_dump_fd, "%0h", dut.sram_top_i.SRAMB_i.sram_0_i.mem[idx]);
+        $fclose(sramc_dump_fd);
+        sramc_dump_fd = $fopen({artifact_dir, "/sramb-bank1-final.mem"}, "w");
+        if (sramc_dump_fd == 0) $fatal(1, "cannot create SRAM B bank 1 dump");
+        for (idx = 0; idx < sauria_pkg::SRAMB_DEPTH; idx = idx + 1)
+            $fdisplay(sramc_dump_fd, "%0h", dut.sram_top_i.SRAMB_i.sram_1_i.mem[idx]);
+        $fclose(sramc_dump_fd);
         sramc_dump_fd = $fopen({artifact_dir, "/sramc-bank0-final.mem"}, "w");
         if (sramc_dump_fd == 0) $fatal(1, "cannot create SRAM C bank 0 dump");
         for (idx = 0; idx < sauria_pkg::SRAMC_DEPTH; idx = idx + 1)
