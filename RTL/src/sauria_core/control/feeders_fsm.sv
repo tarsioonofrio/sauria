@@ -175,7 +175,7 @@ always_comb begin
     end else begin
 
         o_pipeline_en = i_pipeline_gate && pipeline_en &&
-            !((i_act_fifo_empty && (!act_cnt_hold_q)) ||
+            !((i_act_fifo_empty && (!act_cnt_hold_q) && (main_state_q != ACT_FINISHED)) ||
               (i_wei_fifo_empty && (!wei_cnt_hold_q)));
 
     end
