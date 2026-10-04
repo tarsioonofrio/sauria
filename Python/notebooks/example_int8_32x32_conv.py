@@ -69,9 +69,9 @@ def main() -> None:
     channels_in = channels_out = 64
     kernel_h = kernel_w = 3
     stride = dilation = 1
-    output_w = output_h = 64
-    input_w = (1 + stride * (output_w - 1)) + (1 + dilation * (kernel_w - 1)) - 1
-    input_h = (1 + stride * (output_h - 1)) + (1 + dilation * (kernel_h - 1)) - 1
+    input_w = input_h = 32
+    output_w = (input_w - dilation * (kernel_w - 1) - 1) // stride + 1
+    output_h = (input_h - dilation * (kernel_h - 1) - 1) // stride + 1
 
     input_torch = torch.randint(
         -127, 127, (channels_in, input_h, input_w), dtype=torch.int8
@@ -100,10 +100,10 @@ def main() -> None:
     golden = golden_torch.detach().numpy()
     tensor_shapes = [input_tensor.shape, weight_tensor.shape, golden.shape]
     tiling = {
-        "C_tile_shape": [64, 8, 64],
+        "C_tile_shape": [64, 10, 30],
         "tile_cin": 64,
         "X_used": 32,
-        "Y_used": 32,
+        "Y_used": 30,
     }
     conv_dict = slib.get_conv_dict(
         tensor_shapes, tiling, hw_params, d=dilation, s=stride, preloads=True
