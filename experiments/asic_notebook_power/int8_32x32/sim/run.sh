@@ -85,7 +85,7 @@ for case_name in "${case_list[@]}"; do
         "+DRAM_C_OFFSET=$DRAM_C_OFFSET"
         "+OUTPUT_BYTES=$OUTPUT_BYTES"
         "+VECTOR_DIR=$VECTOR_ROOT"
-        "+MAX_LAYER_CYCLES=20000000"
+        "+MAX_LAYER_CYCLES=${MAX_LAYER_CYCLES:-20000000}"
     )
     if [[ "${TRACE_DETAIL:-0}" == 1 ]]; then PLUSARGS+=("+TRACE_DETAIL"); fi
     if [[ "$SIM_STAGE" != gate ]]; then
