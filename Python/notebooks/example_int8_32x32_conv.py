@@ -103,7 +103,7 @@ def main() -> None:
         "C_tile_shape": [3, 10, 30],
         "tile_cin": 3,
         "X_used": 3,
-        "Y_used": 30,
+        "Y_used": 3,
     }
     conv_dict = slib.get_conv_dict(
         tensor_shapes, tiling, hw_params, d=dilation, s=stride, preloads=True
