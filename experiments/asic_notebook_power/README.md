@@ -102,5 +102,10 @@ simulation, and Joules power, use:
 SIM_CASES=conv-x3-y3 RUN_ID=<unique-run-id> ./experiments/asic_notebook_power/run_campaign.sh int8_32x32
 ```
 
+The RTL layer check omits SHM dumping and per-cycle feeder traces by default to
+keep large functional runs manageable. Gate-level simulation still records
+`dut.shm` for Joules. Set `TRACE_DETAIL=1` when debugging to emit the detailed
+SRAM and feeder traces in either simulation stage.
+
 Supported cases are `conv-small` and `conv-large` for `fp16_8x16`, and `conv`,
 `gemm`, and `conv-x3-y3` for `int8_32x32`.

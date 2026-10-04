@@ -87,6 +87,7 @@ for case_name in "${case_list[@]}"; do
         "+VECTOR_DIR=$VECTOR_ROOT"
         "+MAX_LAYER_CYCLES=${MAX_LAYER_CYCLES:-20000000}"
     )
+    if [[ "${TRACE_DETAIL:-0}" == 1 ]]; then PLUSARGS+=("+TRACE_DETAIL"); fi
     if [[ "$SIM_STAGE" != gate ]]; then
         (
             cd "$CASE_ROOT/rtl"
@@ -95,7 +96,6 @@ for case_name in "${case_list[@]}"; do
                 -l "$CASE_ROOT/rtl-xrun.log" "${PLUSARGS[@]}" \
                 "+ARTIFACT_DIR=$CASE_ROOT/rtl"
         )
-        [[ -e "$CASE_ROOT/rtl/dut.shm" ]] || { echo "$case_name RTL run did not create SHM" >&2; exit 3; }
         [[ -s "$CASE_ROOT/rtl/layer_window.txt" ]] || { echo "$case_name RTL run did not create layer window" >&2; exit 3; }
         cp "$CASE_ROOT/rtl/layer_window.txt" "$CASE_ROOT/rtl-layer-window.txt"
         grep -q 'NOTEBOOK_LAYER_PASS' "$CASE_ROOT/rtl-xrun.log" || { echo "$case_name RTL full-layer golden check missing" >&2; exit 4; }
@@ -117,7 +117,7 @@ SDF
             xrun -f "$SIM_ROOT/args.txt" -sdf_cmd_file "$CASE_ROOT/gate-sdf.cmd" -maxdelays \
                 "${include_args[@]}" "${define_args[@]}" -define XRUN -define POWER_ACTIVITY \
                 "$CELL_MODELS" "$RAM_RTL" "$GATE_NETLIST" "$TB" -run -exit \
-                -l "$CASE_ROOT/gate-xrun.log" "${PLUSARGS[@]}" \
+                -l "$CASE_ROOT/gate-xrun.log" "${PLUSARGS[@]}" +DUMP_SHM \
                 "+ARTIFACT_DIR=$CASE_ROOT/gate"
         )
         [[ -e "$CASE_ROOT/gate/dut.shm" ]] || { echo "$case_name gate run did not create SHM" >&2; exit 5; }

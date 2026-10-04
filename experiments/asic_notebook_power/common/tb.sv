@@ -117,6 +117,7 @@ module tb;
     integer ifmap_dm_trace_fd = 0;
     integer sram_write_trace_fd = 0;
     integer ifmap_stage_trace_fd = 0;
+    integer trace_detail = 0;
     integer ifmap_stage_trace_id = 0;
     integer ifmap_stage_tail = 0;
     integer sram_trace_cycle = 0;
@@ -1120,8 +1121,10 @@ module tb;
     initial begin
         // Xcelium 23.03 requires a literal argument to $shm_open. The RTL and
         // gate runners use separate per-stage working directories.
-        $shm_open("dut.shm");
-        $shm_probe(tb.dut, "ASM");
+        if ($test$plusargs("DUMP_SHM")) begin
+            $shm_open("dut.shm");
+            $shm_probe(tb.dut, "ASM");
+        end
     end
 `endif
 
@@ -1590,6 +1593,7 @@ module tb;
     end
 
     initial begin : layer_test
+        trace_detail = $test$plusargs("TRACE_DETAIL");
         if (!$value$plusargs("CONTROLLER_CONFIG_WORDS=%d", controller_count_arg)) $fatal(1, "missing CONTROLLER_CONFIG_WORDS");
         if (!$value$plusargs("DRAM_BYTES=%d", dram_bytes_arg)) $fatal(1, "missing DRAM_BYTES");
         if (!$value$plusargs("OUTPUT_VALUES=%d", output_values_arg)) $fatal(1, "missing OUTPUT_VALUES");
@@ -1643,25 +1647,27 @@ module tb;
         sramb_read_req_id = 0;
         srama_pending_valid = 0;
         sramb_pending_valid = 0;
-        psm_trace_fd = $fopen({artifact_dir, "/sramc-write-trace.txt"}, "w");
-        if (psm_trace_fd == 0) $fatal(1, "cannot create SRAM C write trace");
-        $fdisplay(psm_trace_fd, "# PSM_C_WRITE cycle=<n> index=<n> addr=<n> mask=<bits> data=<hex> ctx=<n> scan=<n>");
-        sramc_host_trace_fd = $fopen({artifact_dir, "/sramc-host-read-trace.txt"}, "w");
-        if (sramc_host_trace_fd == 0) $fatal(1, "cannot create SRAM C host read trace");
-        sram_read_trace_fd = $fopen({artifact_dir, "/accelerator-sram-read-trace.txt"}, "w");
-        if (sram_read_trace_fd == 0) $fatal(1, "cannot create accelerator SRAM read trace");
-        ifmap_push_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-push-trace.txt"}, "w");
-        if (ifmap_push_trace_fd == 0) $fatal(1, "cannot create IFMAP FIFO push trace");
-        ifmap_push_slot_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-push-slot-trace.txt"}, "w");
-        if (ifmap_push_slot_trace_fd == 0) $fatal(1, "cannot create tagged IFMAP FIFO push trace");
-        ifmap_fifo_pop_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-pop-trace.txt"}, "w");
-        if (ifmap_fifo_pop_trace_fd == 0) $fatal(1, "cannot create IFMAP FIFO pop trace");
-        ifmap_dm_trace_fd = $fopen({artifact_dir, "/ifmap-dm-select-trace.txt"}, "w");
-        if (ifmap_dm_trace_fd == 0) $fatal(1, "cannot create IFMAP data-manager selection trace");
-        sram_write_trace_fd = $fopen({artifact_dir, "/accelerator-sram-write-trace.txt"}, "w");
-        if (sram_write_trace_fd == 0) $fatal(1, "cannot create physical SRAM write trace");
-        ifmap_stage_trace_fd = $fopen({artifact_dir, "/ifmap-stage-trace.txt"}, "w");
-        if (ifmap_stage_trace_fd == 0) $fatal(1, "cannot create IFMAP stage trace");
+        if (trace_detail) begin
+            psm_trace_fd = $fopen({artifact_dir, "/sramc-write-trace.txt"}, "w");
+            if (psm_trace_fd == 0) $fatal(1, "cannot create SRAM C write trace");
+            $fdisplay(psm_trace_fd, "# PSM_C_WRITE cycle=<n> index=<n> addr=<n> mask=<bits> data=<hex> ctx=<n> scan=<n>");
+            sramc_host_trace_fd = $fopen({artifact_dir, "/sramc-host-read-trace.txt"}, "w");
+            if (sramc_host_trace_fd == 0) $fatal(1, "cannot create SRAM C host read trace");
+            sram_read_trace_fd = $fopen({artifact_dir, "/accelerator-sram-read-trace.txt"}, "w");
+            if (sram_read_trace_fd == 0) $fatal(1, "cannot create accelerator SRAM read trace");
+            ifmap_push_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-push-trace.txt"}, "w");
+            if (ifmap_push_trace_fd == 0) $fatal(1, "cannot create IFMAP FIFO push trace");
+            ifmap_push_slot_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-push-slot-trace.txt"}, "w");
+            if (ifmap_push_slot_trace_fd == 0) $fatal(1, "cannot create tagged IFMAP FIFO push trace");
+            ifmap_fifo_pop_trace_fd = $fopen({artifact_dir, "/ifmap-fifo-pop-trace.txt"}, "w");
+            if (ifmap_fifo_pop_trace_fd == 0) $fatal(1, "cannot create IFMAP FIFO pop trace");
+            ifmap_dm_trace_fd = $fopen({artifact_dir, "/ifmap-dm-select-trace.txt"}, "w");
+            if (ifmap_dm_trace_fd == 0) $fatal(1, "cannot create IFMAP data-manager selection trace");
+            sram_write_trace_fd = $fopen({artifact_dir, "/accelerator-sram-write-trace.txt"}, "w");
+            if (sram_write_trace_fd == 0) $fatal(1, "cannot create physical SRAM write trace");
+            ifmap_stage_trace_fd = $fopen({artifact_dir, "/ifmap-stage-trace.txt"}, "w");
+            if (ifmap_stage_trace_fd == 0) $fatal(1, "cannot create IFMAP stage trace");
+        end
         fd = $fopen({artifact_dir, "/layer_window.txt"}, "w");
         if (fd == 0) $fatal(1, "cannot create layer window file");
         $fdisplay(fd, "%0.3f", layer_start_ns);
@@ -1684,15 +1690,17 @@ module tb;
             $fatal(1, "layer timed out after %0d cycles; DMA jobs=%0d", layer_cycles, dma_jobs);
         end
         measure_active = 1'b0;
-        $fclose(psm_trace_fd);
-        $fclose(sramc_host_trace_fd);
-        $fclose(sram_read_trace_fd);
-        $fclose(ifmap_push_trace_fd);
-        $fclose(ifmap_push_slot_trace_fd);
-        $fclose(ifmap_fifo_pop_trace_fd);
-        $fclose(ifmap_dm_trace_fd);
-        $fclose(sram_write_trace_fd);
-        $fclose(ifmap_stage_trace_fd);
+        if (trace_detail) begin
+            $fclose(psm_trace_fd);
+            $fclose(sramc_host_trace_fd);
+            $fclose(sram_read_trace_fd);
+            $fclose(ifmap_push_trace_fd);
+            $fclose(ifmap_push_slot_trace_fd);
+            $fclose(ifmap_fifo_pop_trace_fd);
+            $fclose(ifmap_dm_trace_fd);
+            $fclose(sram_write_trace_fd);
+            $fclose(ifmap_stage_trace_fd);
+        end
         sram_read_trace_fd = 0;
         ifmap_push_trace_fd = 0;
         ifmap_push_slot_trace_fd = 0;
