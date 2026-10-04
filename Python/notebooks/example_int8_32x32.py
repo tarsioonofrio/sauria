@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run both examples from example_int8_32x32.ipynb."""
+"""Run the GEMM example from example_int8_32x32.ipynb."""
 
 from __future__ import annotations
 
@@ -19,12 +19,6 @@ TEST_DIR = REPO_ROOT / "test"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--case",
-        choices=("all", "conv", "gemm"),
-        default="all",
-        help="which notebook workload to run (default: all)",
-    )
     parser.add_argument(
         "--seed",
         type=int,
@@ -50,7 +44,6 @@ def main() -> None:
 
     import numpy as np
     import torch
-    import torch.nn.functional as torch_functional
 
     import src.hw_versions as hwv
     import src.sauria_lib as slib
@@ -60,7 +53,7 @@ def main() -> None:
 
     version = "int8_32x32"
     hw_params = hwv.get_params(version)
-    print(f"SAURIA notebook: example_int8_32x32 | version={version} | seed={args.seed}")
+    print(f"SAURIA notebook: example_int8_32x32 GEMM | version={version} | seed={args.seed}")
 
     if not args.no_compile:
         subprocess.run(
@@ -69,124 +62,56 @@ def main() -> None:
             check=True,
         )
 
-    if args.case in ("all", "conv"):
-        channels_in = channels_out = 64
-        kernel_h = kernel_w = 3
-        stride = dilation = 1
-        output_w = output_h = 64
-        input_w = (1 + stride * (output_w - 1)) + (1 + dilation * (kernel_w - 1)) - 1
-        input_h = (1 + stride * (output_h - 1)) + (1 + dilation * (kernel_h - 1)) - 1
+    input_channels = 512
+    vector_count = 256
+    output_channels = 512
+    matrix_a = np.random.randint(
+        -127, 127, size=(input_channels, vector_count), dtype=np.int8
+    )
+    matrix_b = np.random.randint(
+        -127, 127, size=(output_channels, input_channels), dtype=np.int8
+    )
+    bias = np.random.randint(-127, 127, size=(output_channels, 1), dtype=np.int8)
+    matmul_golden = np.matmul(matrix_b.astype(np.int32), matrix_a.astype(np.int32))
+    golden_with_bias = matmul_golden + bias.astype(np.int32)
 
-        input_torch = torch.randint(
-            -127, 127, (channels_in, input_h, input_w), dtype=torch.int8
-        )
-        weight_torch = torch.randint(
-            -127,
-            127,
-            (channels_out, channels_in, kernel_h, kernel_w),
-            dtype=torch.int8,
-        )
-        bias_torch = torch.randint(-127, 127, (channels_out, 1, 1), dtype=torch.int8)
-        golden_torch = bias_torch + torch_functional.conv2d(
-            input_torch.double(),
-            weight_torch.double(),
-            stride=stride,
-            padding=0,
-            dilation=dilation,
-        )
-        golden_torch = golden_torch.int()
+    tensor_a = matrix_a.reshape(input_channels, 1, vector_count)
+    tensor_b = matrix_b.reshape(output_channels, input_channels, 1, 1)
+    tensor_c = matmul_golden.reshape(output_channels, 1, vector_count)
+    tensor_shapes = [tensor_a.shape, tensor_b.shape, tensor_c.shape]
+    tiling = {
+        "C_tile_shape": [128, 1, 256],
+        "tile_cin": 256,
+        "X_used": 32,
+        "Y_used": 32,
+    }
+    conv_dict = slib.get_conv_dict(
+        tensor_shapes, tiling, hw_params, d=1, s=1, preloads=True
+    )
 
-        input_tensor = input_torch.detach().numpy()
-        weight_tensor = weight_torch.detach().numpy()
-        bias = bias_torch.detach().numpy()
-        preload = np.zeros((channels_out, output_h, output_w))
-        preload[:, :, :] = bias.reshape(channels_out, 1, 1)
-        golden = golden_torch.detach().numpy()
-        tensor_shapes = [input_tensor.shape, weight_tensor.shape, golden.shape]
-        tiling = {
-            "C_tile_shape": [64, 8, 64],
-            "tile_cin": 64,
-            "X_used": 32,
-            "Y_used": 32,
-        }
-        conv_dict = slib.get_conv_dict(
-            tensor_shapes, tiling, hw_params, d=dilation, s=stride, preloads=True
-        )
-
-        print(
-            "\nCASE=conv "
-            f"IFMAP={input_tensor.shape} WEIGHTS={weight_tensor.shape} "
-            f"OUTPUT={golden.shape} TILE={tiling['C_tile_shape']}"
-        )
-        output, _ = slib.Conv2d_SAURIA(
-            input_tensor,
-            weight_tensor,
-            preload,
-            golden,
-            conv_dict,
-            hw_params,
-            generate_vcd=False,
-            assert_no_errors=True,
-            print_statistics=True,
-            test_dir=str(TEST_DIR),
-            silent=False,
-        )
-        output = output.astype(np.int32)
-        print(f"CASE=conv mean_absolute_error={np.abs(output - golden).mean()}")
-
-    if args.case in ("all", "gemm"):
-        input_channels = 512
-        vector_count = 256
-        output_channels = 512
-        matrix_a = np.random.randint(
-            -127, 127, size=(input_channels, vector_count), dtype=np.int8
-        )
-        matrix_b = np.random.randint(
-            -127, 127, size=(output_channels, input_channels), dtype=np.int8
-        )
-        bias = np.random.randint(-127, 127, size=(output_channels, 1), dtype=np.int8)
-        matmul_golden = np.matmul(
-            matrix_b.astype(np.int32), matrix_a.astype(np.int32)
-        )
-        golden_with_bias = matmul_golden + bias.astype(np.int32)
-
-        tensor_a = matrix_a.reshape(input_channels, 1, vector_count)
-        tensor_b = matrix_b.reshape(output_channels, input_channels, 1, 1)
-        tensor_c = matmul_golden.reshape(output_channels, 1, vector_count)
-        tensor_shapes = [tensor_a.shape, tensor_b.shape, tensor_c.shape]
-        tiling = {
-            "C_tile_shape": [128, 1, 256],
-            "tile_cin": 256,
-            "X_used": 32,
-            "Y_used": 32,
-        }
-        conv_dict = slib.get_conv_dict(
-            tensor_shapes, tiling, hw_params, d=1, s=1, preloads=True
-        )
-
-        print(
-            "\nCASE=gemm "
-            f"A={matrix_a.shape} B={matrix_b.shape} "
-            f"OUTPUT={matmul_golden.shape} TILE={tiling['C_tile_shape']}"
-        )
-        output, _ = slib.Conv2d_SAURIA(
-            tensor_a,
-            tensor_b,
-            None,
-            tensor_c,
-            conv_dict,
-            hw_params,
-            generate_vcd=False,
-            assert_no_errors=True,
-            print_statistics=True,
-            test_dir=str(TEST_DIR),
-            silent=False,
-        )
-        output_with_bias = output.squeeze().astype(np.int32) + bias.astype(np.int32)
-        print(
-            "CASE=gemm mean_absolute_error="
-            f"{np.abs(output_with_bias - golden_with_bias).mean()}"
-        )
+    print(
+        "\nCASE=gemm "
+        f"A={matrix_a.shape} B={matrix_b.shape} "
+        f"OUTPUT={matmul_golden.shape} TILE={tiling['C_tile_shape']}"
+    )
+    output, _ = slib.Conv2d_SAURIA(
+        tensor_a,
+        tensor_b,
+        None,
+        tensor_c,
+        conv_dict,
+        hw_params,
+        generate_vcd=False,
+        assert_no_errors=True,
+        print_statistics=True,
+        test_dir=str(TEST_DIR),
+        silent=False,
+    )
+    output_with_bias = output.squeeze().astype(np.int32) + bias.astype(np.int32)
+    print(
+        "CASE=gemm mean_absolute_error="
+        f"{np.abs(output_with_bias - golden_with_bias).mean()}"
+    )
 
 
 if __name__ == "__main__":
