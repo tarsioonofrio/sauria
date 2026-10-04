@@ -1022,7 +1022,7 @@ module tb;
                     if (dut.sauria_logic_i.sa_pipeline_en &&
                         dut.sauria_logic_i.main_controller_i.context_switch_controller_i.pop_shim_q2)
                         $fdisplay(ifmap_fifo_pop_trace_fd,
-                            "SA_PAIR_ADVANCE cycle=%0d lane=%0d pipeline_en=%b pop_shim_q2=%b act_pop=%b wei_pop=%b incnt_q=%0d incntlim=%0d act_rep_q=%0d act_rep_d=%0d act_done_edge=%b act_til_done_shim=%b wei_rep_q=%0d wei_rep_d=%0d wei_done_edge=%b wei_til_done_shim=%b sa_input=%0h sa_src_req=%0d sa_src_addr=%0d sa_src_subword=%0d sa_src_token=%0d ctx_state=%0d cscnt_q=%0d cswitch_arr_q=%b",
+                            "SA_PAIR_ADVANCE cycle=%0d lane=%0d pipeline_en=%b pop_shim_q2=%b act_pop=%b wei_pop=%b incnt_q=%0d incntlim=%0d act_rep_q=%0d act_rep_d=%0d act_done_edge=%b act_til_done_shim=%b wei_rep_q=%0d wei_rep_d=%0d wei_done_edge=%b wei_til_done_shim=%b sa_input=%0h sa_weights=%h sa_src_req=%0d sa_src_addr=%0d sa_src_subword=%0d sa_src_token=%0d ctx_state=%0d cscnt_q=%0d cswitch_arr_q=%b",
                             sram_trace_cycle, trace_lane,
                             dut.sauria_logic_i.sa_pipeline_en,
                             dut.sauria_logic_i.main_controller_i.context_switch_controller_i.pop_shim_q2,
@@ -1039,6 +1039,7 @@ module tb;
                             dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_done_edge,
                             dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_til_done_shim,
                             dut.sauria_logic_i.ifmap_feeder_i.o_a_arr[trace_lane],
+                            dut.sauria_logic_i.sa_b_arr,
                             (trace_lane == 0)
                                 ? ((dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
                                     !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
