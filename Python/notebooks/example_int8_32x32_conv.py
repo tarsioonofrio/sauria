@@ -66,7 +66,7 @@ def main() -> None:
             check=True,
         )
 
-    channels_in = channels_out = 64
+    channels_in = channels_out = 3
     kernel_h = kernel_w = 3
     stride = dilation = 1
     input_w = input_h = 32
@@ -100,9 +100,9 @@ def main() -> None:
     golden = golden_torch.detach().numpy()
     tensor_shapes = [input_tensor.shape, weight_tensor.shape, golden.shape]
     tiling = {
-        "C_tile_shape": [64, 10, 30],
-        "tile_cin": 64,
-        "X_used": 32,
+        "C_tile_shape": [3, 10, 30],
+        "tile_cin": 3,
+        "X_used": 3,
         "Y_used": 30,
     }
     conv_dict = slib.get_conv_dict(
