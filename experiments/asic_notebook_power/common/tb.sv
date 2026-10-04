@@ -910,19 +910,19 @@ module tb;
                             if (pipe_slot == 1) begin
                                 ifmap_lane_tag_pipe[trace_lane][pipe_slot-1] <=
                                     (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                     !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                     !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                         ? ifmap_fifo_out_tag_req[trace_lane] : -1;
                                 ifmap_lane_tag_addr_pipe[trace_lane][pipe_slot-1] <=
                                     (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                     !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                     !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                         ? ifmap_fifo_out_tag_addr[trace_lane] : -1;
                                 ifmap_lane_tag_subword_pipe[trace_lane][pipe_slot-1] <=
                                     (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                     !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                     !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                         ? ifmap_fifo_out_tag_subword[trace_lane] : -1;
                                 ifmap_lane_tag_token_pipe[trace_lane][pipe_slot-1] <=
                                     (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                     !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                     !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                         ? ifmap_fifo_out_tag_token[trace_lane] : -1;
                             end else begin
                                 ifmap_lane_tag_pipe[trace_lane][pipe_slot-1] <= ifmap_lane_tag_pipe[trace_lane][pipe_slot-2];
@@ -961,49 +961,49 @@ module tb;
                             ifmap_fifo_out_tag_token[trace_lane],
                             dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.o_data,
                             (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                 ? ifmap_fifo_out_tag_req[trace_lane] : -1,
                             (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                 ? ifmap_fifo_out_tag_addr[trace_lane] : -1,
                             (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                 ? ifmap_fifo_out_tag_subword[trace_lane] : -1,
                             (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                 ? ifmap_fifo_out_tag_token[trace_lane] : -1,
                             dut.sauria_logic_i.ifmap_feeder_i.lane_dout[trace_lane],
                             (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                 ? ifmap_fifo_out_tag_req[trace_lane] : -1,
                             (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                 ? ifmap_fifo_out_tag_addr[trace_lane] : -1,
                             (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                 ? ifmap_fifo_out_tag_subword[trace_lane] : -1,
                             (dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                             !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                 ? ifmap_fifo_out_tag_token[trace_lane] : -1,
                             dut.sauria_logic_i.ifmap_feeder_i.o_a_arr[trace_lane],
                             (trace_lane == 0)
                                 ? ((dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                        ? ifmap_fifo_out_tag_req[trace_lane] : -1)
                                 : ifmap_lane_tag_pipe[trace_lane][(trace_lane > 0) ? trace_lane-1 : 0],
                             (trace_lane == 0)
                                 ? ((dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                        ? ifmap_fifo_out_tag_addr[trace_lane] : -1)
                                 : ifmap_lane_tag_addr_pipe[trace_lane][(trace_lane > 0) ? trace_lane-1 : 0],
                             (trace_lane == 0)
                                 ? ((dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                        ? ifmap_fifo_out_tag_subword[trace_lane] : -1)
                                 : ifmap_lane_tag_subword_pipe[trace_lane][(trace_lane > 0) ? trace_lane-1 : 0],
                             (trace_lane == 0)
                                 ? ((dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                        ? ifmap_fifo_out_tag_token[trace_lane] : -1)
                                 : ifmap_lane_tag_token_pipe[trace_lane][(trace_lane > 0) ? trace_lane-1 : 0],
                             dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q,
@@ -1042,22 +1042,22 @@ module tb;
                             dut.sauria_logic_i.sa_b_arr,
                             (trace_lane == 0)
                                 ? ((dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                        ? ifmap_fifo_out_tag_req[trace_lane] : -1)
                                 : ifmap_lane_tag_pipe[trace_lane][(trace_lane > 0) ? trace_lane-1 : 0],
                             (trace_lane == 0)
                                 ? ((dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                        ? ifmap_fifo_out_tag_addr[trace_lane] : -1)
                                 : ifmap_lane_tag_addr_pipe[trace_lane][(trace_lane > 0) ? trace_lane-1 : 0],
                             (trace_lane == 0)
                                 ? ((dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                        ? ifmap_fifo_out_tag_subword[trace_lane] : -1)
                                 : ifmap_lane_tag_subword_pipe[trace_lane][(trace_lane > 0) ? trace_lane-1 : 0],
                             (trace_lane == 0)
                                 ? ((dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_pop &&
-                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q2)
+                                    !dut.sauria_logic_i.ifmap_feeder_i.y_axis[trace_lane].ifmap_feeder_i.fifo_empty_q1)
                                        ? ifmap_fifo_out_tag_token[trace_lane] : -1)
                                 : ifmap_lane_tag_token_pipe[trace_lane][(trace_lane > 0) ? trace_lane-1 : 0],
                             dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_q,
