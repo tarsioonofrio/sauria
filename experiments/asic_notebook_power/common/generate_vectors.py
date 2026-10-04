@@ -81,15 +81,29 @@ def signed_wrap(values: np.ndarray, bits: int) -> np.ndarray:
     return ((values.astype(np.int64) + sign) % modulus - sign).astype(np.int64)
 
 
+def fp16_fma_convolution(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
+    """Reference the SAURIA FP16 MAC: fused multiply-add, rounded per MAC."""
+    output_h = a.shape[1] - b.shape[2] + 1
+    output_w = a.shape[2] - b.shape[3] + 1
+    acc = np.asarray(c, dtype=np.float16).astype(np.float64)
+    for cin in range(a.shape[0]):
+        for kh in range(b.shape[2]):
+            for kw in range(b.shape[3]):
+                activation = a[cin, kh:kh + output_h, kw:kw + output_w].astype(np.float64)
+                weights = b[:, cin, kh, kw].astype(np.float64)[:, None, None]
+                # Binary16 operands and accumulators are exactly represented in
+                # binary64 here; convert back after each MAC to model FP16 RNE.
+                acc = (weights * activation[None, :, :] + acc).astype(np.float16).astype(np.float64)
+    return acc.astype(np.float16)
+
+
 def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int):
     rng = np.random.default_rng(seed)
     if profile == "fp16_8x16":
         np.random.seed(seed)
         a, b, c = data_helper.generate_tensors(conv, hopts, insert_deadbeef=False)
-        output, _, _ = execution_model.get_ideal_results(
-            a, b, c, conv, hopts, sauria_lib.get_sa_dict(hopts)
-        )
-        return a, b, c, output, "SAURIA Python execution_model"
+        output = fp16_fma_convolution(a, b, c)
+        return a, b, c, output, "FP16 fused multiply-add with rounding after each MAC"
 
     shapes = PROFILES[profile]["cases"][case]["shapes"]
     a_shape, b_shape, out_shape = shapes
