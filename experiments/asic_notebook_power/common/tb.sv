@@ -1750,14 +1750,18 @@ module tb;
 
         errors = 0;
         checksum = 32'h811c9dc5;
+        fd = $fopen({artifact_dir, "/golden-mismatch-trace.txt"}, "w");
+        if (fd == 0) $fatal(1, "cannot create golden mismatch trace");
         for (byte_idx = dram_c_offset; byte_idx < dram_bytes; byte_idx = byte_idx + 1) begin
             if (dram[byte_idx] !== dram_gold[byte_idx]) begin
+                $fdisplay(fd, "byte=%0d got=%02x expected=%02x", byte_idx, dram[byte_idx], dram_gold[byte_idx]);
                 if (errors < 10)
                     $display("DRAM_GOLDEN_MISMATCH byte=%0d got=%02x expected=%02x", byte_idx, dram[byte_idx], dram_gold[byte_idx]);
                 errors = errors + 1;
             end
             checksum = (checksum ^ dram[byte_idx]) * 32'h01000193;
         end
+        $fclose(fd);
         if (errors != 0) $fatal(1, "full-layer golden mismatch: %0d output bytes", errors);
         if (dma_jobs == 0 || dma_ext_read_bytes == 0 || dma_ext_write_bytes == 0)
             $fatal(1, "layer did not exercise both external DRAM directions");
