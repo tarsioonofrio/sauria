@@ -79,7 +79,7 @@ logic [FIFO_W-1:0]  fifo_din;
 // FIFO intermediate signals
 logic [I_W-1:0]    fifo_dout;
 logic               fifo_empty, fifo_full, fifo_pop;
-logic               fifo_empty_q1, fifo_empty_q2;      // q1 aligns empty with the registered FIFO output
+logic               fifo_empty_q1, fifo_empty_q2;      // Empty signal with shimming
 
 // Pop enable signal propagation
 logic               pop_en_q;
@@ -195,7 +195,7 @@ end
 // Output management
 // ------------------------
 
-assign o_data = (fifo_pop && (!fifo_empty_q1)) ? fifo_dout : 0;
+assign o_data = (fifo_pop && (!fifo_empty_q2)) ? fifo_dout : 0;
 assign o_fifo_empty = fifo_empty;
 assign o_fifo_full = fifo_full;
 
