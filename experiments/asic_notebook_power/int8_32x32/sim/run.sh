@@ -56,7 +56,7 @@ else
 fi
 for case_name in "${case_list[@]}"; do
     case "$(basename "$CONFIG_ROOT"):$case_name" in
-        fp16_8x16:conv-small|fp16_8x16:conv-large|int8_32x32:conv|int8_32x32:gemm) ;;
+        fp16_8x16:conv-small|fp16_8x16:conv-large|int8_32x32:conv|int8_32x32:gemm|int8_32x32:conv-x3-y3) ;;
         *) echo "Unsupported SIM_CASES entry for $(basename "$CONFIG_ROOT"): $case_name" >&2; exit 2 ;;
     esac
 done

@@ -7,6 +7,16 @@ case "$PROFILE" in
     int8_32x32) CASES=(conv gemm) ;;
     *) echo "Unknown profile: $PROFILE" >&2; exit 2 ;;
 esac
+if [[ -n "${SIM_CASES:-}" ]]; then
+    read -r -a CASES <<< "$SIM_CASES"
+    ((${#CASES[@]} > 0)) || { echo "SIM_CASES must name at least one workload" >&2; exit 2; }
+    for case_name in "${CASES[@]}"; do
+        case "$PROFILE:$case_name" in
+            fp16_8x16:conv-small|fp16_8x16:conv-large|int8_32x32:conv|int8_32x32:gemm|int8_32x32:conv-x3-y3) ;;
+            *) echo "Unknown workload for $PROFILE: $case_name" >&2; exit 2 ;;
+        esac
+    done
+fi
 ROOT=$(git rev-parse --show-toplevel)
 CONFIG_ROOT="$ROOT/experiments/asic_notebook_power/$PROFILE"
 RUN_ID=${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$(git -C "$ROOT" rev-parse --short HEAD)}

@@ -44,6 +44,11 @@ PROFILES = {
         "memory_depths": (2048, 2048, 1024),
         "lanes": (32, 32, 32),
         "cases": {
+            "conv-x3-y3": {
+                "shapes": ([3, 32, 32], [3, 3, 3, 3], [3, 30, 30]),
+                "tiling": {"C_tile_shape": [3, 10, 30], "tile_cin": 3, "X_used": 3, "Y_used": 3},
+                "seed": 20261004,
+            },
             "conv": {
                 "shapes": ([64, 66, 66], [64, 64, 3, 3], [64, 64, 64]),
                 "tiling": {"C_tile_shape": [64, 8, 64], "tile_cin": 64, "X_used": 32, "Y_used": 32},
@@ -110,7 +115,7 @@ def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int):
     a = rng.integers(-127, 127, size=a_shape, dtype=np.int16).astype(np.int8)
     b = rng.integers(-127, 127, size=b_shape, dtype=np.int16).astype(np.int8)
     c = np.zeros(out_shape, dtype=np.int64)
-    if case == "conv":
+    if case.startswith("conv"):
         c[:, :, :] = rng.integers(-127, 127, size=(out_shape[0], 1, 1), dtype=np.int16)
         out = c.copy()
         for kh in range(3):
