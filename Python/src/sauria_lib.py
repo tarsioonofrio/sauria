@@ -21,8 +21,6 @@ Jordi Fornt <jfornt@bsc.es>
 
 import numpy as np
 import sys
-import os
-import subprocess
 
 sys.path.insert(1, './../')
 import src.config_helper as cfg
@@ -257,15 +255,9 @@ def Conv2d_SAURIA(A_tensor, B_tensor, C_preload, C_golden, CONV_DICT, HOPTS, gen
     # Save Test outputs
     fh.generate_test_files(DRAM_mem, DRAM_mem_gold, controller_args, [offsets[0],offsets[2],offsets[3]], HOPTS, N_REGS, test_dir=test_dir)
     
-    # Execute the simulation in Verilator
-    cwd = os.getcwd()
-    os.chdir("../../test/verilator")
-    f1 = open("verilator_run.log","w")
-    if generate_vcd:
-        subprocess.call(["sh","./run_sauria_test.sh", "new.vcd"],stdout=f1)
-    else:
-        subprocess.call(["sh","./run_sauria_test.sh"],stdout=f1)
-    os.chdir(cwd)
+    # Run the original subsystem testbench with the same official data paths
+    # used by the Python generator. Fail immediately on a timeout or RTL error.
+    fh.run_verilator_test(test_dir=test_dir, generate_vcd=generate_vcd)
 
     # Retrieve the output values
     out_values, stats_dict, n_test_errors = fh.parse_test_outputs(HOPTS, C_golden.size, test_dir=test_dir)

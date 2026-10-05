@@ -29,8 +29,6 @@
 // --------------------
 
 `define PRINT_ERRORS
-`define STIMULI_PATH    "../stimuli"
-`define OUTPUTS_PATH    "../outputs"
 `define WRITE_OUTPUTS   1
 `define CHECK_RESULTS   1
 
@@ -307,8 +305,11 @@ module sauria_tester(
 
     // Load memories
     initial begin: data_load_check
-        $readmemh({`STIMULI_PATH,"/initial_dram.txt"}, i_sim_mem_0.mem, DRAM_OFFSET);
-        $readmemh({`STIMULI_PATH,"/gold_dram.txt"}, gold_dram, DRAM_OFFSET);
+        string stimuli_path;
+        stimuli_path = "../stimuli";
+        void'($value$plusargs("stim_path=%s", stimuli_path));
+        $readmemh({stimuli_path,"/initial_dram.txt"}, i_sim_mem_0.mem, DRAM_OFFSET);
+        $readmemh({stimuli_path,"/gold_dram.txt"}, gold_dram, DRAM_OFFSET);
     end
 
     // Check for data mismatches
@@ -386,8 +387,12 @@ module sauria_tester(
             errors = n_errs;
 
             // Write output memory contents to a file for analysis
-            if (`WRITE_OUTPUTS == 1)
-                $writememh({`OUTPUTS_PATH,"/test_results.txt"}, i_sim_mem_0.mem, DRAM_OFFSET+dram_outoffs, DRAM_OFFSET+dram_endoffs);
+            if (`WRITE_OUTPUTS == 1) begin
+                string outputs_path;
+                outputs_path = "../outputs";
+                void'($value$plusargs("out_path=%s", outputs_path));
+                $writememh({outputs_path,"/test_results.txt"}, i_sim_mem_0.mem, DRAM_OFFSET+dram_outoffs, DRAM_OFFSET+dram_endoffs);
+            end
 
         end
     end

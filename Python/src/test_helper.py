@@ -24,11 +24,11 @@ import sys
 import scipy.stats as stats
 
 import os 
-import subprocess
 
 sys.path.insert(1, './../')
 import src.config_helper as cfg
 import src.data_helper as dh
+import src.file_helper as fh
 
 # ---------------------------------------------------
 # Void test array (for when we don't want fix tests)
@@ -621,28 +621,32 @@ def run_cfg_test(HOPTS, assert_no_error=False, test_dir="../../test"):
     # ----------------------------------
 
     # Create stmuli and output directories if it they don't exist
-    if not(os.path.exists(os.path.join(test_dir, "stimuli"))):
-        os.mkdir(os.path.join(test_dir, "stimuli"))
-    if not(os.path.exists(os.path.join(test_dir, "outputs"))):
-        os.mkdir(os.path.join(test_dir, "outputs"))
+    test_dir = fh.resolve_test_dir(test_dir)
+    (test_dir / "stimuli").mkdir(parents=True, exist_ok=True)
+    (test_dir / "outputs").mkdir(parents=True, exist_ok=True)
 
     # Save matrices
-    np.savetxt(os.path.join(test_dir, "stimuli/GoldenStimuli.txt"), Input_Matrix, fmt='%01X', delimiter=' ')
-    np.savetxt(os.path.join(test_dir, "stimuli/initial_dram.txt"), DRAM_mem, fmt='%01X', delimiter=' ')
-    np.savetxt(os.path.join(test_dir, "stimuli/gold_dram.txt"), DRAM_mem_gold, fmt='%01X', delimiter=' ')
+    np.savetxt(test_dir / "stimuli/GoldenStimuli.txt", Input_Matrix, fmt='%01X', delimiter=' ')
+    np.savetxt(test_dir / "stimuli/initial_dram.txt", DRAM_mem, fmt='%01X', delimiter=' ')
+    np.savetxt(test_dir / "stimuli/gold_dram.txt", DRAM_mem_gold, fmt='%01X', delimiter=' ')
     
     # Generate and save (dummy) test config file
     testcfg_list = [1,1,1]
-    np.savetxt(os.path.join(test_dir, "stimuli/tstcfg.txt"), np.array(testcfg_list), fmt='%01X', delimiter=' ')
+    np.savetxt(test_dir / "stimuli/tstcfg.txt", np.array(testcfg_list), fmt='%01X', delimiter=' ')
 
-    # Execute the simulation in Verilator
-    cwd = os.getcwd()
-    os.chdir(os.path.join(test_dir, "verilator"))
-    subprocess.call(["./Test-Sim","+check_read_values"])
-    os.chdir(cwd)
+    # Remove previous output so a stale result cannot be mistaken for this run.
+    for output_name in ("test_results.txt", "test_stats.txt"):
+        try:
+            (test_dir / "outputs" / output_name).unlink()
+        except FileNotFoundError:
+            pass
+
+    fh.run_verilator_test(test_dir=test_dir, check_read_values=True)
 
     # Test outputs now look different, however, the last value is always the number of errors
-    stats_outputs = np.loadtxt(os.path.join(test_dir, "outputs/test_stats.txt"), dtype=int)
+    stats_outputs = np.atleast_1d(np.loadtxt(test_dir / "outputs/test_stats.txt", dtype=int))
+    if stats_outputs.size == 0:
+        raise ValueError("test_stats.txt is empty; Verilator produced no result")
     n_errors = stats_outputs[-1]
 
     if n_errors==0:

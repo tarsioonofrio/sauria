@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Run the convolution example from example_int8_32x32.ipynb."""
+"""Run the 3x3 INT8 convolution through SAURIA's original subsystem testbench."""
 
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
-import os
+import hashlib
 from pathlib import Path
-import re
 import subprocess
 import sys
 
@@ -15,8 +13,8 @@ import sys
 NOTEBOOK_DIR = Path(__file__).resolve().parent
 PYTHON_DIR = NOTEBOOK_DIR.parent
 REPO_ROOT = PYTHON_DIR.parent
-SIM_DIR = REPO_ROOT / "experiments" / "asic_notebook_power" / "int8_32x32" / "sim"
-RUN_ARTIFACTS = SIM_DIR / "run_artifacts"
+VERILATOR_DIR = REPO_ROOT / "test" / "verilator"
+TEST_DIR = REPO_ROOT / "test"
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,17 +26,15 @@ def parse_args() -> argparse.Namespace:
         help="seed for PyTorch and NumPy random tensors (default: %(default)s)",
     )
     parser.add_argument(
-        "--simulator",
-        choices=("xcelium", "icarus", "verilator"),
-        default="xcelium",
-        help="RTL simulator to use through the ASIC run.sh harness (default: %(default)s)",
+        "--no-compile",
+        action="store_true",
+        help="reuse the already compiled native int8_8x8 SAURIA testbench",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    os.chdir(NOTEBOOK_DIR)
     sys.path.insert(0, str(PYTHON_DIR))
 
     from dotenv import load_dotenv
@@ -55,19 +51,26 @@ def main() -> None:
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    version = "int8_32x32"
+    version = "int8_8x8"
     hw_params = hwv.get_params(version)
     print(
-        f"SAURIA notebook: example_int8_32x32 conv | version={version} "
+        f"SAURIA subsystem: 3x3 INT8 convolution | version={version} "
         f"| seed={args.seed}"
     )
+
+    if not args.no_compile:
+        subprocess.run(
+            ["sh", "./compile_sauria.sh", version],
+            cwd=VERILATOR_DIR,
+            check=True,
+        )
 
     channels_in = channels_out = 3
     kernel_h = kernel_w = 3
     stride = dilation = 1
-    input_w = input_h = 32
-    output_w = (input_w - dilation * (kernel_w - 1) - 1) // stride + 1
+    input_h = input_w = 32
     output_h = (input_h - dilation * (kernel_h - 1) - 1) // stride + 1
+    output_w = (input_w - dilation * (kernel_w - 1) - 1) // stride + 1
 
     input_torch = torch.randint(
         -127, 127, (channels_in, input_h, input_w), dtype=torch.int8
@@ -79,21 +82,20 @@ def main() -> None:
         dtype=torch.int8,
     )
     bias_torch = torch.randint(-127, 127, (channels_out, 1, 1), dtype=torch.int8)
-    golden_torch = bias_torch + torch_functional.conv2d(
+    golden_torch = (bias_torch + torch_functional.conv2d(
         input_torch.double(),
         weight_torch.double(),
         stride=stride,
         padding=0,
         dilation=dilation,
-    )
-    golden_torch = golden_torch.int()
+    )).to(torch.int32)
 
-    input_tensor = input_torch.detach().numpy()
-    weight_tensor = weight_torch.detach().numpy()
-    bias = bias_torch.detach().numpy()
-    preload = np.zeros((channels_out, output_h, output_w))
-    preload[:, :, :] = bias.reshape(channels_out, 1, 1)
-    golden = golden_torch.detach().numpy()
+    input_tensor = input_torch.numpy()
+    weight_tensor = weight_torch.numpy()
+    preload = np.broadcast_to(
+        bias_torch.numpy().astype(np.int32), (channels_out, output_h, output_w)
+    ).copy()
+    golden = golden_torch.numpy()
     tensor_shapes = [input_tensor.shape, weight_tensor.shape, golden.shape]
     tiling = {
         "C_tile_shape": [3, 10, 30],
@@ -108,58 +110,30 @@ def main() -> None:
     print(
         "\nCASE=conv "
         f"IFMAP={input_tensor.shape} WEIGHTS={weight_tensor.shape} "
-        f"OUTPUT={golden.shape} TILE={tiling['C_tile_shape']}"
+        f"OUTPUT={golden.shape} TILE={tiling['C_tile_shape']} "
+        f"X_used={tiling['X_used']} Y_used={tiling['Y_used']}"
     )
-    run_id = (
-        datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        + f"-notebook-seed{args.seed}-{args.simulator}"
+    output, stats = slib.Conv2d_SAURIA(
+        input_tensor,
+        weight_tensor,
+        preload,
+        golden,
+        conv_dict,
+        hw_params,
+        generate_vcd=False,
+        assert_no_errors=True,
+        print_statistics=True,
+        test_dir=str(TEST_DIR),
+        silent=False,
     )
-    run_root = RUN_ARTIFACTS / run_id
-    run_root.mkdir(parents=True, exist_ok=False)
-    tensor_file = run_root / "notebook_tensors.npz"
-    np.savez_compressed(
-        tensor_file,
-        A=input_tensor,
-        B=weight_tensor,
-        C=preload.astype(np.int64),
-        output=golden.astype(np.int64),
-        seed=np.asarray(args.seed, dtype=np.int64),
-    )
+    output = np.asarray(output, dtype=np.int32)
+    np.testing.assert_array_equal(output, golden)
 
-    sim_env = os.environ.copy()
-    sim_env.update(
-        {
-            "RUN_ID": run_id,
-            "SIM_STAGE": "rtl",
-            "SIMULATOR": args.simulator,
-            "SIM_CASES": "conv-x3-y3",
-            "SIM_VECTOR_INPUT": str(tensor_file),
-        }
-    )
-    print(f"{args.simulator} RTL simulation | RUN_ID={run_id} | vectors={tensor_file}")
-    subprocess.run(["bash", str(SIM_DIR / "run.sh")], cwd=REPO_ROOT, env=sim_env, check=True)
-
-    log_names = {
-        "xcelium": "rtl-xrun.log",
-        "icarus": "rtl-iverilog.log",
-        "verilator": "rtl-verilator.log",
-    }
-    simulation_log = run_root / "conv-x3-y3" / log_names[args.simulator]
-    log_text = simulation_log.read_text()
-    if "NOTEBOOK_LAYER_PASS" not in log_text:
-        raise RuntimeError(
-            f"{args.simulator} did not report a full-layer golden pass: {simulation_log}"
-        )
-    cycles = re.search(r"LAYER_CYCLES=(\d+)", log_text)
-    checksum = re.search(r"OUTPUT_CHECKSUM=([0-9a-fA-F]+)", log_text)
-    if not cycles or not checksum:
-        raise RuntimeError(
-            f"{args.simulator} pass log is missing cycle/checksum data: {simulation_log}"
-        )
-    print(f"TEST PASSED ({args.simulator} full-layer golden check)")
-    print(f"CASE=conv cycles={cycles.group(1)} outputs_checksum={checksum.group(1)}")
-    print(f"CASE=conv mean_absolute_error=0.0")
-    print(f"Simulation log: {simulation_log}")
+    checksum = hashlib.sha256(np.asarray(output, dtype="<i4").tobytes()).hexdigest()
+    print("TEST PASSED (full layer matches the direct int32 convolution)")
+    print(f"LAYER_CYCLES={stats['total_cycles']}")
+    print(f"OUTPUT_SHA256={checksum}")
+    print(f"Official stimuli/results directory: {TEST_DIR}")
 
 
 if __name__ == "__main__":

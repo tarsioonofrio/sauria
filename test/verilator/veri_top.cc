@@ -34,7 +34,7 @@ using std::vector;
 using namespace std;
 
 uint64_t main_time = 0;
-uint64_t max_time = 10000;
+uint64_t max_cycles = 10000;
 uint64_t start_vcd_time = 0;
 unsigned int exit_delay = 0;
 unsigned int exit_code = 0;
@@ -45,7 +45,7 @@ void print_help(){
     std::cout << "SAURIA Verilator simulation flags: "<< std::endl << std::endl;
 
     std::cout << "+max-cycles="<< std::endl;
-    std::cout << "\tSets the maximum cycles of the simulation."<< std::endl << std::endl;
+    std::cout << "\tSets the maximum 1 GHz system-clock cycles (0 disables the limit)."<< std::endl << std::endl;
 
     std::cout << "+start_vcd_time="<< std::endl;
     std::cout << "\tSets the starting cycle of the vcd trace."<< std::endl << std::endl;
@@ -158,7 +158,7 @@ int main(int argc, char** argv, char** env) {
             vcd_enable = true;
         }
         else if(it->find("+max-cycles=") == 0) {
-            max_time = strtoul(it->substr(strlen("+max-cycles=")).c_str(), NULL, 10);
+            max_cycles = strtoull(it->substr(strlen("+max-cycles=")).c_str(), NULL, 10);
         }
         else if(it->find("+start_vcd_time=") == 0) {
             start_vcd_time = strtoul(it->substr(strlen("+start_vcd_time=")).c_str(), NULL, 10);
@@ -292,7 +292,7 @@ int main(int argc, char** argv, char** env) {
     //########################## MAIN LOOP ################################
     //#####################################################################
     while (!Verilated::gotFinish() && (!done) && (idx_cfg < N_LINES_STIM)
-        && (max_time == 0 || main_time < max_time)
+        && (max_cycles == 0 || cycle_counter < max_cycles)
         && (!exit_code || exit_delay > 1)  && (exit_delay != 1)) {
         
         // RAISE RST
@@ -506,9 +506,9 @@ int main(int argc, char** argv, char** env) {
     top->final();
     if(vcd_enable) vcd->close();
 
-    if (max_time != 0 && main_time >= max_time) {
+    if (max_cycles != 0 && cycle_counter >= max_cycles) {
         exit_code = 1;
-        std::cerr << "[" << main_time << "] TIMEOUT - Arrived at max time." << std::endl;
+        std::cerr << "[" << cycle_counter << "] TIMEOUT - Arrived at max cycles." << std::endl;
     }
 
     delete top;
