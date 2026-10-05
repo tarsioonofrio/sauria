@@ -250,6 +250,34 @@ module tb;
 
     always @(posedge clk) begin
         if (trace_detail && measure_active &&
+            (dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q !=
+             dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_d))
+            $display("FEED_FSM_EDGE cycle=%0d state=%0d next=%0d act_rep=%0d/%0d wei_rep=%0d/%0d act_til=%b act_ov=%b act_hold=%b wei_til=%b wei_ov=%b wei_hold=%b act_empty=%b wei_empty=%b act_stall=%b wei_stall=%b pop_gate=%b act_pop=%b wei_pop=%b pipeline_en=%b ctx=%0d out_finalwrite=%b",
+                layer_cycles,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_d,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_rep_cnt_q,
+                dut.sauria_logic_i.mc_act_reps,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_rep_cnt_q,
+                dut.sauria_logic_i.mc_wei_reps,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_til_done_shim,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_ov_flag_shim,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.act_cnt_hold_q,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_til_done_shim,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_ov_flag_shim,
+                dut.sauria_logic_i.main_controller_i.feeders_fsm_i.wei_cnt_hold_q,
+                dut.sauria_logic_i.mc_act_fifo_empty,
+                dut.sauria_logic_i.mc_wei_fifo_empty,
+                dut.sauria_logic_i.mc_act_stall,
+                dut.sauria_logic_i.mc_wei_stall,
+                dut.sauria_logic_i.main_controller_i.pop_gate,
+                dut.sauria_logic_i.main_controller_i.o_act_pop_en,
+                dut.sauria_logic_i.main_controller_i.o_wei_pop_en,
+                dut.sauria_logic_i.sa_pipeline_en,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_q,
+                dut.sauria_logic_i.mc_finalwrite);
+
+        if (trace_detail && measure_active &&
             (dut.sauria_logic_i.mc_outbuf_done ||
              dut.sauria_logic_i.ob_outbuf_start ||
              dut.sauria_logic_i.ob_outbuf_reset))
