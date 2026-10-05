@@ -160,6 +160,11 @@ def main() -> int:
     parser.add_argument("--profile", choices=PROFILES, required=True)
     parser.add_argument("--case", required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument(
+        "--input-npz",
+        type=Path,
+        help="use A, B, C, output, and seed arrays from this NPZ instead of generated vectors",
+    )
     args = parser.parse_args()
 
     profile = PROFILES[args.profile]
@@ -174,9 +179,29 @@ def main() -> int:
     shapes = case_spec["shapes"]
     tiling = dict(case_spec["tiling"])
     conv = sauria_lib.get_conv_dict(shapes, tiling, hopts, preloads=True, d=1, s=1, p=0)
-    a, b, c, output, golden_model = case_tensors(
-        args.profile, args.case, hopts, conv, case_spec["seed"]
-    )
+    vector_source = "generated"
+    seed = case_spec["seed"]
+    if args.input_npz:
+        with np.load(args.input_npz, allow_pickle=False) as tensors:
+            a = tensors["A"]
+            b = tensors["B"]
+            c = tensors["C"]
+            output = tensors["output"]
+            if "seed" in tensors.files:
+                seed = int(tensors["seed"])
+        expected_shapes = tuple(tuple(shape) for shape in shapes)
+        actual_shapes = (a.shape, b.shape, output.shape)
+        if actual_shapes != expected_shapes or c.shape != output.shape:
+            raise ValueError(
+                f"NPZ tensor shapes do not match {args.profile}/{args.case}: "
+                f"A/B/output={actual_shapes}, C={c.shape}, expected={expected_shapes}"
+            )
+        golden_model = "caller-provided full-precision integer convolution output"
+        vector_source = str(args.input_npz.resolve())
+    else:
+        a, b, c, output, golden_model = case_tensors(
+            args.profile, args.case, hopts, conv, seed
+        )
     if tuple(output.shape) != tuple(shapes[2]):
         raise RuntimeError(f"model output shape {output.shape} does not match requested {shapes[2]}")
 
@@ -244,7 +269,8 @@ def main() -> int:
         "profile": args.profile,
         "version": profile["version"],
         "case": args.case,
-        "seed": case_spec["seed"],
+        "seed": seed,
+        "vector_source": vector_source,
         "array": {"x": hopts["X"], "y": hopts["Y"]},
         "numbers": {"operand_bits": [hopts["IA_W"], hopts["IB_W"]], "accumulator_bits": hopts["OC_W"], "floating": float_mode, "overflow": "signed wrap modulo 2^OC_W" if not float_mode else "SAURIA floating-point encoding/rounding model", "saturation": False if not float_mode else "SAURIA FP encoder underflow-to-zero and overflow clamp"},
         "memory_depths": list(profile["memory_depths"]),

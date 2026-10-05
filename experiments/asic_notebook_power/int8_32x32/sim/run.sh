@@ -70,8 +70,14 @@ for case_name in "${case_list[@]}"; do
     CASE_ROOT="$RUN_ROOT/$case_name"
     VECTOR_ROOT="$CASE_ROOT/vectors"
     mkdir -p "$CASE_ROOT/rtl" "$CASE_ROOT/gate"
+    vector_args=()
+    if [[ -n "${SIM_VECTOR_INPUT:-}" ]]; then
+        [[ "${#case_list[@]}" -eq 1 ]] || { echo "SIM_VECTOR_INPUT supports exactly one case per run" >&2; exit 2; }
+        [[ -s "$SIM_VECTOR_INPUT" ]] || { echo "Missing SIM_VECTOR_INPUT: $SIM_VECTOR_INPUT" >&2; exit 2; }
+        vector_args+=(--input-npz "$SIM_VECTOR_INPUT")
+    fi
     "$PYTHON" "$GIT_ROOT/experiments/asic_notebook_power/common/generate_vectors.py" \
-        --profile "$(basename "$CONFIG_ROOT")" --case "$case_name" --out "$VECTOR_ROOT" \
+        --profile "$(basename "$CONFIG_ROOT")" --case "$case_name" --out "$VECTOR_ROOT" "${vector_args[@]}" \
         > "$CASE_ROOT/vector-generation.json"
     # run.env contains only integer word counts generated from the manifest.
     # shellcheck disable=SC1091

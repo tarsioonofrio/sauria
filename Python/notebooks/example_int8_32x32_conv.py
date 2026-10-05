@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -13,8 +15,8 @@ import sys
 NOTEBOOK_DIR = Path(__file__).resolve().parent
 PYTHON_DIR = NOTEBOOK_DIR.parent
 REPO_ROOT = PYTHON_DIR.parent
-VERILATOR_DIR = REPO_ROOT / "test" / "verilator"
-TEST_DIR = REPO_ROOT / "test"
+SIM_DIR = REPO_ROOT / "experiments" / "asic_notebook_power" / "int8_32x32" / "sim"
+RUN_ARTIFACTS = SIM_DIR / "run_artifacts"
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,11 +26,6 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=20261004,
         help="seed for PyTorch and NumPy random tensors (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--no-compile",
-        action="store_true",
-        help="reuse the already compiled int8_32x32 Verilator model",
     )
     return parser.parse_args()
 
@@ -58,13 +55,6 @@ def main() -> None:
         f"SAURIA notebook: example_int8_32x32 conv | version={version} "
         f"| seed={args.seed}"
     )
-
-    if not args.no_compile:
-        subprocess.run(
-            ["sh", "./compile_sauria.sh", version],
-            cwd=VERILATOR_DIR,
-            check=True,
-        )
 
     channels_in = channels_out = 3
     kernel_h = kernel_w = 3
@@ -114,21 +104,43 @@ def main() -> None:
         f"IFMAP={input_tensor.shape} WEIGHTS={weight_tensor.shape} "
         f"OUTPUT={golden.shape} TILE={tiling['C_tile_shape']}"
     )
-    output, _ = slib.Conv2d_SAURIA(
-        input_tensor,
-        weight_tensor,
-        preload,
-        golden,
-        conv_dict,
-        hw_params,
-        generate_vcd=False,
-        assert_no_errors=True,
-        print_statistics=True,
-        test_dir=str(TEST_DIR),
-        silent=False,
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-notebook-seed{args.seed}"
+    run_root = RUN_ARTIFACTS / run_id
+    run_root.mkdir(parents=True, exist_ok=False)
+    tensor_file = run_root / "notebook_tensors.npz"
+    np.savez_compressed(
+        tensor_file,
+        A=input_tensor,
+        B=weight_tensor,
+        C=preload.astype(np.int64),
+        output=golden.astype(np.int64),
+        seed=np.asarray(args.seed, dtype=np.int64),
     )
-    output = output.astype(np.int32)
-    print(f"CASE=conv mean_absolute_error={np.abs(output - golden).mean()}")
+
+    sim_env = os.environ.copy()
+    sim_env.update(
+        {
+            "RUN_ID": run_id,
+            "SIM_STAGE": "rtl",
+            "SIM_CASES": "conv-x3-y3",
+            "SIM_VECTOR_INPUT": str(tensor_file),
+        }
+    )
+    print(f"Xcelium RTL simulation | RUN_ID={run_id} | vectors={tensor_file}")
+    subprocess.run(["bash", str(SIM_DIR / "run.sh")], cwd=REPO_ROOT, env=sim_env, check=True)
+
+    xrun_log = run_root / "conv-x3-y3" / "rtl-xrun.log"
+    log_text = xrun_log.read_text()
+    if "NOTEBOOK_LAYER_PASS" not in log_text:
+        raise RuntimeError(f"Xcelium did not report a full-layer golden pass: {xrun_log}")
+    cycles = re.search(r"LAYER_CYCLES=(\d+)", log_text)
+    checksum = re.search(r"OUTPUT_CHECKSUM=([0-9a-fA-F]+)", log_text)
+    if not cycles or not checksum:
+        raise RuntimeError(f"Xcelium pass log is missing cycle/checksum data: {xrun_log}")
+    print("TEST PASSED (Xcelium full-layer golden check)")
+    print(f"CASE=conv cycles={cycles.group(1)} outputs_checksum={checksum.group(1)}")
+    print(f"CASE=conv mean_absolute_error=0.0")
+    print(f"Xcelium log: {xrun_log}")
 
 
 if __name__ == "__main__":
