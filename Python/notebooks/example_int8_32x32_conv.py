@@ -27,6 +27,12 @@ def parse_args() -> argparse.Namespace:
         default=20261004,
         help="seed for PyTorch and NumPy random tensors (default: %(default)s)",
     )
+    parser.add_argument(
+        "--simulator",
+        choices=("xcelium", "icarus", "verilator"),
+        default="xcelium",
+        help="RTL simulator to use through the ASIC run.sh harness (default: %(default)s)",
+    )
     return parser.parse_args()
 
 
@@ -104,7 +110,10 @@ def main() -> None:
         f"IFMAP={input_tensor.shape} WEIGHTS={weight_tensor.shape} "
         f"OUTPUT={golden.shape} TILE={tiling['C_tile_shape']}"
     )
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-notebook-seed{args.seed}"
+    run_id = (
+        datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        + f"-notebook-seed{args.seed}-{args.simulator}"
+    )
     run_root = RUN_ARTIFACTS / run_id
     run_root.mkdir(parents=True, exist_ok=False)
     tensor_file = run_root / "notebook_tensors.npz"
@@ -122,25 +131,35 @@ def main() -> None:
         {
             "RUN_ID": run_id,
             "SIM_STAGE": "rtl",
+            "SIMULATOR": args.simulator,
             "SIM_CASES": "conv-x3-y3",
             "SIM_VECTOR_INPUT": str(tensor_file),
         }
     )
-    print(f"Xcelium RTL simulation | RUN_ID={run_id} | vectors={tensor_file}")
+    print(f"{args.simulator} RTL simulation | RUN_ID={run_id} | vectors={tensor_file}")
     subprocess.run(["bash", str(SIM_DIR / "run.sh")], cwd=REPO_ROOT, env=sim_env, check=True)
 
-    xrun_log = run_root / "conv-x3-y3" / "rtl-xrun.log"
-    log_text = xrun_log.read_text()
+    log_names = {
+        "xcelium": "rtl-xrun.log",
+        "icarus": "rtl-iverilog.log",
+        "verilator": "rtl-verilator.log",
+    }
+    simulation_log = run_root / "conv-x3-y3" / log_names[args.simulator]
+    log_text = simulation_log.read_text()
     if "NOTEBOOK_LAYER_PASS" not in log_text:
-        raise RuntimeError(f"Xcelium did not report a full-layer golden pass: {xrun_log}")
+        raise RuntimeError(
+            f"{args.simulator} did not report a full-layer golden pass: {simulation_log}"
+        )
     cycles = re.search(r"LAYER_CYCLES=(\d+)", log_text)
     checksum = re.search(r"OUTPUT_CHECKSUM=([0-9a-fA-F]+)", log_text)
     if not cycles or not checksum:
-        raise RuntimeError(f"Xcelium pass log is missing cycle/checksum data: {xrun_log}")
-    print("TEST PASSED (Xcelium full-layer golden check)")
+        raise RuntimeError(
+            f"{args.simulator} pass log is missing cycle/checksum data: {simulation_log}"
+        )
+    print(f"TEST PASSED ({args.simulator} full-layer golden check)")
     print(f"CASE=conv cycles={cycles.group(1)} outputs_checksum={checksum.group(1)}")
     print(f"CASE=conv mean_absolute_error=0.0")
-    print(f"Xcelium log: {xrun_log}")
+    print(f"Simulation log: {simulation_log}")
 
 
 if __name__ == "__main__":

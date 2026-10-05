@@ -4,6 +4,10 @@ set -Eeuo pipefail
 SIM_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 CONFIG_ROOT=$(cd -- "$SIM_ROOT/.." && pwd)
 GIT_ROOT=$(git -C "$CONFIG_ROOT" rev-parse --show-toplevel)
+SIMULATOR=${SIMULATOR:-xcelium}
+IVERILOG=${IVERILOG:-iverilog}
+VVP=${VVP:-vvp}
+VERILATOR=${VERILATOR:-verilator}
 RESULTS=${LOGICAL_RESULTS_ROOT:-"$CONFIG_ROOT/logical/results"}
 RUN_ID=${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$(git -C "$GIT_ROOT" rev-parse --short HEAD)}
 RUN_ROOT="$SIM_ROOT/run_artifacts/$RUN_ID"
@@ -15,11 +19,25 @@ CELL_MODELS=/pdk/tsmc/PDK28/PDK_TSMC28_bv/tcbn28hpcplusbwp30p140_190a/TSMCHOME/d
 PYTHON=${SAURIA_PYTHON:-/sim/tarsio/sauria/Python/sauria-env/bin/python}
 SIM_STAGE=${SIM_STAGE:-all}
 [[ "$SIM_STAGE" == rtl || "$SIM_STAGE" == gate || "$SIM_STAGE" == all ]] || { echo "SIM_STAGE must be rtl, gate, or all" >&2; exit 2; }
+case "$SIMULATOR" in
+    xcelium|icarus|verilator) ;;
+    *) echo "SIMULATOR must be xcelium, icarus, or verilator" >&2; exit 2 ;;
+esac
+if [[ "$SIMULATOR" != xcelium && "$SIM_STAGE" != rtl ]]; then
+    echo "$SIMULATOR supports RTL simulation only; SIM_STAGE must be rtl" >&2
+    exit 2
+fi
 
 source /usr/share/Modules/init/bash
 module purge
 module use /soft64/modulefiles
-module load cadence/xcelium/2303
+case "$SIMULATOR" in
+    xcelium) module load "${XCELIUM_MODULE:-cadence/xcelium/2303}" ;;
+    verilator) module load "${VERILATOR_MODULE:-others/verilator/5.052}" ;;
+    icarus)
+        if [[ -n "${IVERILOG_MODULE:-}" ]]; then module load "$IVERILOG_MODULE"; fi
+        ;;
+esac
 
 rtl_files=()
 while IFS= read -r source_file; do
@@ -31,19 +49,23 @@ done < "$CONFIG_ROOT/list-file.txt"
 rtl_files+=("$RAM_RTL")
 
 define_args=()
+generic_define_args=()
 while IFS= read -r define; do
     define="${define#"${define%%[![:space:]]*}"}"
     [[ -z "$define" || "$define" == \#* ]] && continue
     if [[ "$define" == "-define "* ]]; then define="${define#-define }"; fi
     define_args+=(-define "$define")
+    generic_define_args+=(-D "$define")
 done < "$CONFIG_ROOT/list-define.txt"
 
 include_args=()
+generic_include_args=()
 while IFS= read -r include_dir; do
     include_dir="${include_dir#"${include_dir%%[![:space:]]*}"}"
     [[ -z "$include_dir" || "$include_dir" == \#* ]] && continue
     [[ "$include_dir" != /* ]] && include_dir="$GIT_ROOT/$include_dir"
     include_args+=(-incdir "$include_dir")
+    generic_include_args+=(-I "$include_dir")
 done < "$CONFIG_ROOT/list-incdir.txt"
 
 case_list=()
@@ -63,8 +85,18 @@ done
 mkdir -p "$RUN_ROOT"
 [[ -x "$PYTHON" ]] || { echo "Missing Python environment: $PYTHON" >&2; exit 2; }
 if [[ "$SIM_STAGE" != rtl ]]; then
+    [[ "$SIMULATOR" == xcelium ]] || { echo "Gate simulation requires Xcelium" >&2; exit 2; }
     [[ -s "$GATE_NETLIST" ]] || { echo "Missing synthesized netlist: $GATE_NETLIST" >&2; exit 2; }
 fi
+
+case "$SIMULATOR" in
+    xcelium) command -v xrun >/dev/null || { echo "xrun not found" >&2; exit 2; } ;;
+    icarus)
+        command -v "$IVERILOG" >/dev/null || { echo "iverilog not found (load/install Icarus or set IVERILOG)" >&2; exit 2; }
+        command -v "$VVP" >/dev/null || { echo "vvp not found (load/install Icarus or set VVP)" >&2; exit 2; }
+        ;;
+    verilator) command -v "$VERILATOR" >/dev/null || { echo "verilator not found" >&2; exit 2; } ;;
+esac
 
 for case_name in "${case_list[@]}"; do
     CASE_ROOT="$RUN_ROOT/$case_name"
@@ -95,16 +127,46 @@ for case_name in "${case_list[@]}"; do
     )
     if [[ "${TRACE_DETAIL:-0}" == 1 ]]; then PLUSARGS+=("+TRACE_DETAIL"); fi
     if [[ "$SIM_STAGE" != gate ]]; then
-        (
-            cd "$CASE_ROOT/rtl"
-            xrun -f "$SIM_ROOT/args.txt" "${include_args[@]}" "${define_args[@]}" -define XRUN \
-                "${rtl_files[@]}" "$TB" -run -exit \
-                -l "$CASE_ROOT/rtl-xrun.log" "${PLUSARGS[@]}" \
-                "+ARTIFACT_DIR=$CASE_ROOT/rtl"
-        )
+        case "$SIMULATOR" in
+            xcelium) SIM_LOG="$CASE_ROOT/rtl-xrun.log" ;;
+            icarus) SIM_LOG="$CASE_ROOT/rtl-iverilog.log" ;;
+            verilator) SIM_LOG="$CASE_ROOT/rtl-verilator.log" ;;
+        esac
+        case "$SIMULATOR" in
+            xcelium)
+                (
+                    cd "$CASE_ROOT/rtl"
+                    xrun -f "$SIM_ROOT/args.txt" "${include_args[@]}" "${define_args[@]}" -define XRUN \
+                        "${rtl_files[@]}" "$TB" -run -exit \
+                        -l "$SIM_LOG" "${PLUSARGS[@]}" \
+                        "+ARTIFACT_DIR=$CASE_ROOT/rtl"
+                )
+                ;;
+            icarus)
+                (
+                    cd "$CASE_ROOT/rtl"
+                    "$IVERILOG" -g2012 -s tb -o "$CASE_ROOT/rtl/sauria_asic_tb.vvp" \
+                        "${generic_include_args[@]}" "${generic_define_args[@]}" "${rtl_files[@]}" "$TB" \
+                        > "$SIM_LOG" 2>&1
+                    "$VVP" "$CASE_ROOT/rtl/sauria_asic_tb.vvp" "${PLUSARGS[@]}" \
+                        "+ARTIFACT_DIR=$CASE_ROOT/rtl" >> "$SIM_LOG" 2>&1
+                )
+                ;;
+            verilator)
+                (
+                    cd "$CASE_ROOT/rtl"
+                    "$VERILATOR" --binary --timing --top-module tb -Wno-fatal \
+                        --Mdir "$CASE_ROOT/rtl/obj_dir" -o sauria_asic_tb \
+                        "${generic_include_args[@]}" "${generic_define_args[@]}" "${rtl_files[@]}" "$TB" \
+                        > "$SIM_LOG" 2>&1
+                    "$CASE_ROOT/rtl/obj_dir/sauria_asic_tb" "${PLUSARGS[@]}" \
+                        "+ARTIFACT_DIR=$CASE_ROOT/rtl" >> "$SIM_LOG" 2>&1
+                )
+                ;;
+        esac
         [[ -s "$CASE_ROOT/rtl/layer_window.txt" ]] || { echo "$case_name RTL run did not create layer window" >&2; exit 3; }
         cp "$CASE_ROOT/rtl/layer_window.txt" "$CASE_ROOT/rtl-layer-window.txt"
-        grep -q 'NOTEBOOK_LAYER_PASS' "$CASE_ROOT/rtl-xrun.log" || { echo "$case_name RTL full-layer golden check missing" >&2; exit 4; }
+        grep -q 'NOTEBOOK_LAYER_PASS' "$SIM_LOG" || { echo "$case_name RTL full-layer golden check missing in $SIM_LOG" >&2; exit 4; }
     fi
 
     if [[ "$SIM_STAGE" != rtl ]]; then
@@ -131,5 +193,5 @@ SDF
         cp "$CASE_ROOT/gate/layer_window.txt" "$CASE_ROOT/gate-layer-window.txt"
         grep -q 'NOTEBOOK_LAYER_PASS' "$CASE_ROOT/gate-xrun.log" || { echo "$case_name gate full-layer golden check missing" >&2; exit 6; }
     fi
-    echo "SIM_${SIM_STAGE^^}_PASS $case_name" | tee -a "$RUN_ROOT/simulation-status.txt"
+    echo "SIM_${SIMULATOR^^}_${SIM_STAGE^^}_PASS $case_name" | tee -a "$RUN_ROOT/simulation-status.txt"
 done
