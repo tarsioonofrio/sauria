@@ -1,5 +1,8 @@
 default: all
 
+SHELL := /bin/bash
+.SHELLFLAGS := -o pipefail -c
+
 arith = EXACT
 base_dir = $(abspath .)
 tb_top = sauria_tester
