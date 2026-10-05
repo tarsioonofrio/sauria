@@ -8,6 +8,7 @@ SIMULATOR=${SIMULATOR:-xcelium}
 IVERILOG=${IVERILOG:-iverilog}
 VVP=${VVP:-vvp}
 VERILATOR=${VERILATOR:-verilator}
+VERILATOR_CXX_ENV=${VERILATOR_CXX_ENV:-/opt/rh/gcc-toolset-15/enable}
 RESULTS=${LOGICAL_RESULTS_ROOT:-"$CONFIG_ROOT/logical/results"}
 RUN_ID=${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$(git -C "$GIT_ROOT" rev-parse --short HEAD)}
 RUN_ROOT="$SIM_ROOT/run_artifacts/$RUN_ID"
@@ -33,7 +34,10 @@ module purge
 module use /soft64/modulefiles
 case "$SIMULATOR" in
     xcelium) module load "${XCELIUM_MODULE:-cadence/xcelium/2303}" ;;
-    verilator) module load "${VERILATOR_MODULE:-others/verilator/5.052}" ;;
+    verilator)
+        module load "${VERILATOR_MODULE:-others/verilator/5.052}"
+        if [[ -r "$VERILATOR_CXX_ENV" ]]; then source "$VERILATOR_CXX_ENV"; fi
+        ;;
     icarus)
         if [[ -n "${IVERILOG_MODULE:-}" ]]; then module load "$IVERILOG_MODULE"; fi
         ;;
