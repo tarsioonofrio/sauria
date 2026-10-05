@@ -249,6 +249,27 @@ module tb;
     always #1ns clk = ~clk;
 
     always @(posedge clk) begin
+        if (trace_detail && measure_active &&
+            (dut.sauria_logic_i.mc_outbuf_done ||
+             dut.sauria_logic_i.ob_outbuf_start ||
+             dut.sauria_logic_i.ob_outbuf_reset))
+            $display("OBUF_HANDSHAKE cycle=%0d ctx_state=%0d psm_state=%0d psm_ctx=%0d/%0d psm_done=%b outbuf_done_q=%b outbuf_done_hold=%b start=%b reset=%b enable_d=%b enable_q=%b shift_done=%b cdone=%b feeders_done=%b",
+                layer_cycles,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_q,
+                dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.main_state_q,
+                dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.ctx_cnt,
+                dut.sauria_logic_i.ob_ncontexts,
+                dut.sauria_logic_i.mc_outbuf_done,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.outbuf_done_q,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.outbuf_done_hold,
+                dut.sauria_logic_i.ob_outbuf_start,
+                dut.sauria_logic_i.ob_outbuf_reset,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.outbuf_enable_d,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.outbuf_enable_q,
+                dut.sauria_logic_i.mc_shift_done,
+                dut.sauria_logic_i.main_controller_i.cdone,
+                dut.sauria_logic_i.main_controller_i.feeders_done);
+
         if (measure_active && dut.sauria_logic_i.psm_top_i.o_sramc_wren && psm_trace_fd != 0) begin
             psm_trace_count = psm_trace_count + 1;
             $fdisplay(psm_trace_fd,
