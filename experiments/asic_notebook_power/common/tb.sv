@@ -250,6 +250,23 @@ module tb;
 
     always @(posedge clk) begin
         if (trace_detail && measure_active &&
+            (dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_q !=
+             dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_d))
+            $display("CTX_FSM_EDGE cycle=%0d state=%0d next=%0d psm_ctx=%0d/%0d finalwrite=%b feeders_done=%b cdone=%b cswitch_done=%b outbuf_done=%b outbuf_hold=%b shift_done=%b",
+                layer_cycles,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_q,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_d,
+                dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.ctx_cnt,
+                dut.sauria_logic_i.ob_ncontexts,
+                dut.sauria_logic_i.mc_finalwrite,
+                dut.sauria_logic_i.main_controller_i.feeders_done,
+                dut.sauria_logic_i.main_controller_i.cdone,
+                dut.sauria_logic_i.main_controller_i.cswitch_done,
+                dut.sauria_logic_i.mc_outbuf_done,
+                dut.sauria_logic_i.main_controller_i.context_fsm_i.outbuf_done_hold,
+                dut.sauria_logic_i.mc_shift_done);
+
+        if (trace_detail && measure_active &&
             (dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q !=
              dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_d))
             $display("FEED_FSM_EDGE cycle=%0d state=%0d next=%0d act_rep=%0d/%0d wei_rep=%0d/%0d act_til=%b act_ov=%b act_hold=%b wei_til=%b wei_ov=%b wei_hold=%b act_empty=%b wei_empty=%b act_stall=%b wei_stall=%b pop_gate=%b act_pop=%b wei_pop=%b pipeline_en=%b ctx=%0d out_finalwrite=%b",
