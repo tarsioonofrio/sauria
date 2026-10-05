@@ -59,7 +59,7 @@ while IFS= read -r define; do
     [[ -z "$define" || "$define" == \#* ]] && continue
     if [[ "$define" == "-define "* ]]; then define="${define#-define }"; fi
     define_args+=(-define "$define")
-    generic_define_args+=(-D "$define")
+    generic_define_args+=("-D$define")
 done < "$CONFIG_ROOT/list-define.txt"
 
 include_args=()
@@ -69,7 +69,7 @@ while IFS= read -r include_dir; do
     [[ -z "$include_dir" || "$include_dir" == \#* ]] && continue
     [[ "$include_dir" != /* ]] && include_dir="$GIT_ROOT/$include_dir"
     include_args+=(-incdir "$include_dir")
-    generic_include_args+=(-I "$include_dir")
+    generic_include_args+=("-I$include_dir")
 done < "$CONFIG_ROOT/list-incdir.txt"
 
 case_list=()
