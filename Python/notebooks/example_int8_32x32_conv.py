@@ -26,9 +26,11 @@ def parse_args() -> argparse.Namespace:
         help="seed for PyTorch and NumPy random tensors (default: %(default)s)",
     )
     parser.add_argument(
-        "--no-compile",
-        action="store_true",
-        help="reuse the already compiled native int8_8x8 SAURIA testbench",
+        "--array-size",
+        type=int,
+        choices=(2, 3, 4, 5, 6, 8),
+        default=8,
+        help="physical systolic array dimension N for an NxN array (default: %(default)s)",
     )
     return parser.parse_args()
 
@@ -51,19 +53,18 @@ def main() -> None:
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    version = "int8_8x8"
+    version = f"int8_{args.array_size}x{args.array_size}"
     hw_params = hwv.get_params(version)
     print(
         f"SAURIA subsystem: 3x3 INT8 convolution | version={version} "
         f"| seed={args.seed}"
     )
 
-    if not args.no_compile:
-        subprocess.run(
-            ["sh", "./compile_sauria.sh", version],
-            cwd=VERILATOR_DIR,
-            check=True,
-        )
+    subprocess.run(
+        ["sh", "./compile_sauria.sh", version],
+        cwd=VERILATOR_DIR,
+        check=True,
+    )
 
     channels_in = channels_out = 3
     kernel_h = kernel_w = 3
@@ -97,11 +98,21 @@ def main() -> None:
     ).copy()
     golden = golden_torch.numpy()
     tensor_shapes = [input_tensor.shape, weight_tensor.shape, golden.shape]
+    x_used = max(
+        size
+        for size in range(1, min(args.array_size, channels_out) + 1)
+        if channels_out % size == 0
+    )
+    y_used = max(
+        size
+        for size in range(1, min(args.array_size, output_w) + 1)
+        if output_w % size == 0
+    )
     tiling = {
         "C_tile_shape": [3, 10, 30],
         "tile_cin": 3,
-        "X_used": 3,
-        "Y_used": 3,
+        "X_used": x_used,
+        "Y_used": y_used,
     }
     conv_dict = slib.get_conv_dict(
         tensor_shapes, tiling, hw_params, d=dilation, s=stride, preloads=True
@@ -111,8 +122,14 @@ def main() -> None:
         "\nCASE=conv "
         f"IFMAP={input_tensor.shape} WEIGHTS={weight_tensor.shape} "
         f"OUTPUT={golden.shape} TILE={tiling['C_tile_shape']} "
-        f"X_used={tiling['X_used']} Y_used={tiling['Y_used']}"
+        f"ARRAY={args.array_size}x{args.array_size} "
+        f"PHYSICAL_MULTIPLIERS={args.array_size**2} "
+        f"ACTIVE_PES={x_used * y_used} (X_used={x_used}, Y_used={y_used})"
     )
+    dataset_hash = hashlib.sha256()
+    for tensor in (input_tensor, weight_tensor, preload):
+        dataset_hash.update(np.ascontiguousarray(tensor).tobytes())
+    print(f"DATASET_SHA256={dataset_hash.hexdigest()}")
     output, stats = slib.Conv2d_SAURIA(
         input_tensor,
         weight_tensor,

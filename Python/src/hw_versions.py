@@ -96,7 +96,9 @@ def get_params(version):
         HOPTS["add_type"] =            4
         HOPTS["A"] =                   16
 
-    elif version=="int8_8x8":
+    elif version in {"int8_2x2", "int8_3x3", "int8_4x4", "int8_5x5", "int8_6x6", "int8_8x8"}:
+
+        array_size = int(version.split("_")[1].split("x")[0])
 
         # Memory Sizes
         # *******************************************
@@ -111,8 +113,8 @@ def get_params(version):
 
         # Systolic Array HW parameters
         # *******************************************
-        HOPTS["X"] =                   8       # SA X size
-        HOPTS["Y"] =                   8       # SA Y size
+        HOPTS["X"] =                   array_size  # SA X size
+        HOPTS["Y"] =                   array_size  # SA Y size
         HOPTS["DILP_W"] =              64      # Dilation parameter width
         HOPTS["PARAMS_W"] =            8       # General parameters width
         HOPTS["TH_W"] =                2       # Negligence threshold width
