@@ -1,3 +1,0 @@
-pulp_platform/axi/include
-pulp_platform/common_cells/include
-pulp_platform/common_cells/src
