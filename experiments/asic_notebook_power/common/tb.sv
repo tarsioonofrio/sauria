@@ -1752,6 +1752,38 @@ module tb;
             $display("CORE_CSWITCH_DEBUG cscnt=%0d cscnt_flag=%b trigger=%b cdone_hold=%b cdone_shim=%b cswitch_en=%b cswitch_force=%b cnt_clear=%b pipe_en=%b cdone_force=%b/%b pop_shim=%b/%b", dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cscnt_q, dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cscnt_flag, dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cscnt_trigger, dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cdone_hold, dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cdone_shim_q1, dut.sauria_logic_i.main_controller_i.cswitch_en, dut.sauria_logic_i.main_controller_i.cswitch_force, dut.sauria_logic_i.main_controller_i.cswitch_cnt_clear, dut.sauria_logic_i.sa_pipeline_en, dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cdone_force_q1, dut.sauria_logic_i.main_controller_i.context_switch_controller_i.cdone_force_q2, dut.sauria_logic_i.main_controller_i.context_switch_controller_i.pop_shim_init_q, dut.sauria_logic_i.main_controller_i.context_switch_controller_i.pop_shim_q2);
             $display("CORE_PSM_DEBUG state=%0d status=%0d ctx=%0d/%0d scan=%0d pipeline_en=%b cnt_done=%b cnt_til_done=%b fifo_data=%b sram_wren=%b sram_addr=%08x sram_wmask=%x", dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.main_state_q, dut.sauria_logic_i.cg_out_status, dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.ctx_cnt, dut.sauria_logic_i.ob_ncontexts, dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.scan_cnt, dut.sauria_logic_i.sa_pipeline_en, dut.sauria_logic_i.psm_top_i.cnt_done, dut.sauria_logic_i.psm_top_i.cnt_til_done, dut.sauria_logic_i.psm_top_i.fifo_data_flag, dut.sauria_logic_i.psm_top_i.o_sramc_wren, dut.sauria_logic_i.psm_top_i.o_sramc_addr, dut.sauria_logic_i.psm_top_i.o_sramc_wmask);
             $display("CORE_MEM_DEBUG act_rden=%b act_addr=%08x act_data=%08x wei_rden=%b wei_addr=%08x wei_data=%08x", dut.sauria_logic_i.o_srama_rden, dut.sauria_logic_i.o_srama_addr, dut.sauria_logic_i.i_srama_data, dut.sauria_logic_i.o_sramb_rden, dut.sauria_logic_i.o_sramb_addr, dut.sauria_logic_i.i_sramb_data);
+            $display("IFMAP_IDX_DEBUG x=%0d/%0d step=%0d xov=%b y=%0d/%0d step=%0d yov=%b ch=%0d/%0d step=%0d chov=%b til_x=%0d/%0d step=%0d til_xov=%b til_y=%0d/%0d step=%0d til_yov=%b done=%b til_done=%b cnt_en=%b cnt_clear=%b",
+                     dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.x_idx, dut.sauria_logic_i.af_xlim,
+                     dut.sauria_logic_i.af_xstep, dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.x_ov_flag,
+                     dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.y_idx, dut.sauria_logic_i.af_ylim,
+                     dut.sauria_logic_i.af_ystep, dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.y_ov_flag,
+                     dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.ch_idx, dut.sauria_logic_i.af_chlim,
+                     dut.sauria_logic_i.af_chstep, dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.ch_ov_flag,
+                     dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_x_idx, dut.sauria_logic_i.af_til_xlim,
+                     dut.sauria_logic_i.af_til_xstep, dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_x_ov_flag,
+                     dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_y_idx, dut.sauria_logic_i.af_til_ylim,
+                     dut.sauria_logic_i.af_til_ystep, dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_y_ov_flag,
+                     dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.done_q,
+                     dut.sauria_logic_i.ifmap_feeder_i.ifmap_idxcnt_i.til_done_q,
+                     dut.sauria_logic_i.ifmap_feeder_i.cnt_en, dut.sauria_logic_i.af_act_cnt_clear);
+            $display("WEIGHT_IDX_DEBUG aux=%0d/%0d step=%0d auxov=%b w=%0d/%0d step=%0d wov=%b til_k=%0d/%0d step=%0d til_kov=%b done=%b til_done=%b cnt_en=%b cnt_clear=%b",
+                     dut.sauria_logic_i.weight_feeder_i.wei_idxcnt_i.aux_idx, dut.sauria_logic_i.wf_auxlim,
+                     dut.sauria_logic_i.wf_auxstep, dut.sauria_logic_i.weight_feeder_i.wei_idxcnt_i.aux_ov_flag,
+                     dut.sauria_logic_i.weight_feeder_i.wei_idxcnt_i.w_idx, dut.sauria_logic_i.wf_wlim,
+                     dut.sauria_logic_i.wf_wstep, dut.sauria_logic_i.weight_feeder_i.wei_idxcnt_i.w_ov_flag,
+                     dut.sauria_logic_i.weight_feeder_i.wei_idxcnt_i.til_k_idx, dut.sauria_logic_i.wf_til_klim,
+                     dut.sauria_logic_i.wf_til_kstep, dut.sauria_logic_i.weight_feeder_i.wei_idxcnt_i.til_k_ov_flag,
+                     dut.sauria_logic_i.weight_feeder_i.wei_idxcnt_i.done_q,
+                     dut.sauria_logic_i.weight_feeder_i.wei_idxcnt_i.til_done_q,
+                     dut.sauria_logic_i.wf_wei_cnt_en, dut.sauria_logic_i.wf_wei_cnt_clear);
+            $display("PSM_DEBUG state=%0d ctx=%0d/%0d scan=%0d status=%0d cnt_done=%b cnt_til_done=%b completion=%b finalwrite=%b shift_done=%b outbuf_done=%b",
+                     dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.main_state_q,
+                     dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.ctx_cnt, dut.sauria_logic_i.ob_ncontexts,
+                     dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.scan_cnt, dut.sauria_logic_i.cg_out_status,
+                     dut.sauria_logic_i.psm_top_i.cnt_done, dut.sauria_logic_i.psm_top_i.cnt_til_done,
+                     dut.sauria_logic_i.psm_top_i.psm_shift_fsm_i.completion_flag,
+                     dut.sauria_logic_i.mc_finalwrite, dut.sauria_logic_i.mc_shift_done,
+                     dut.sauria_logic_i.mc_outbuf_done);
             $display("DMA_FSM_DEBUG next=%0d first_tile=%b addr=%08x wdata=%08x addr_sent=%b data_sent=%b start=%b start_wresp_sync=%b wresp_sync=%b wresp_count=%0d btt=%0d local_addr=%08x y=%0d/%0d z=%0d/%0d ycounter=%0d zcounter=%0d last_iter=%b ifmaps_change=%b weights_change=%b psums_change=%b", dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.next_action, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.first_tile, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wdata, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.data_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start_wresp_sync, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_sync_state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_counter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.btt, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.local_SRAM_addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.y, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ylim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.z, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zlim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ycounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zcounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.last_iter_sig, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ifmaps_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.weights_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.psums_change);
             $fatal(1, "layer timed out after %0d cycles; DMA jobs=%0d", layer_cycles, dma_jobs);
         end
