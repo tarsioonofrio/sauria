@@ -21,7 +21,7 @@ module ram_inferred_0 (
                     $display("SRAM_MODEL_WRITE module=ram_inferred_0 addr=%0d mask=%0h data=%0h", i_addr, i_wmask, i_indata);
                 else
                     $display("SRAM_MODEL_READ module=ram_inferred_0 addr=%0d data=%0h", i_addr, mem[i_addr]);
-                power_debug_events = power_debug_events + 1;
+                power_debug_events <= power_debug_events + 1;
             end
             if (!i_rdwen) begin
                 for (integer bit_idx = 0; bit_idx < 96; bit_idx += 8) begin
