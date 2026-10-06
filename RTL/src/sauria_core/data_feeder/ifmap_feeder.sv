@@ -225,6 +225,7 @@ end
 ifmap_idxcnt #(
         .IDX_W(IDX_W),
         .ADRA_W(ADRA_W),
+        .SRAMA_N(SRAMA_N),
         .WOFS_W(WOFS_W),
         .PARAMS_W(PARAMS_W)
     ) ifmap_idxcnt_i

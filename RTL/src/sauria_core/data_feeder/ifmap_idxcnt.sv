@@ -28,6 +28,7 @@
 module ifmap_idxcnt #(
     parameter IDX_W = 11,
     parameter ADRA_W = 8,
+    parameter SRAMA_N = 8,
     parameter WOFS_W = 3,
     parameter PARAMS_W = 8
 )(
@@ -252,7 +253,7 @@ always_ff @(posedge i_clk or negedge i_rstn) begin : out_shimming_reg
 
         // SRAM index register & done flag are gated by counter enable (pipeline stall)
         end else if (i_cnt_en) begin
-            woffs_outshim <=        sram_idx_q[WOFS_W-1:0];
+            woffs_outshim <=        sram_idx_q % SRAMA_N;
             x_ov_flag_outshim <=    x_ov_flag_q;
             outbounds_outshim <=    outbounds_q;
         end
@@ -264,7 +265,7 @@ end
 // ------------------------
 
 // Addresses
-assign o_sram_addr =    sram_idx_q[IDX_W-1:WOFS_W];
+assign o_sram_addr =    sram_idx_q / SRAMA_N;
 assign o_woffs =        woffs_outshim;
 
 // Flags
