@@ -10,7 +10,7 @@ read_mmmc [file join $CONFIG_ROOT scripts mmmc_tsmc_28_bv.tcl]
 puts "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 puts "Configuration of the Genus"
 puts "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-set_multi_cpu_usage -local_cpu 112
+set_multi_cpu_usage -local_cpu 24
 set_db lp_default_probability 0.5
 set_db syn_global_effort high
 set_db auto_ungroup none
