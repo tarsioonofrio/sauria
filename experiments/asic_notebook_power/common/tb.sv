@@ -248,6 +248,9 @@ module tb;
 
     always #1ns clk = ~clk;
 
+`ifndef POWER_ACTIVITY
+    // Internal hierarchy traces are for RTL diagnosis only. The mapped
+    // gate-level netlist is flattened, so these probes are absent there.
     always @(posedge clk) begin
         if (trace_detail && measure_active &&
             (dut.sauria_logic_i.main_controller_i.context_fsm_i.main_state_q !=
@@ -1134,6 +1137,7 @@ module tb;
             end
         end
     endgenerate
+`endif
 
     assign dma_aw_ready = !dma_aw_pending && !dma_b_valid;
     assign dma_w_ready = !dma_w_pending && !dma_b_valid;
@@ -1307,7 +1311,8 @@ module tb;
                     mem_wren = 1'b1;
                     @(posedge clk);
                     #1ps;
-                    if (external_addr + offset < dram_b_offset)
+                    if (external_addr + offset < dram_b_offset) begin
+`ifndef POWER_ACTIVITY
                         $display("DMA_IFMAP_HOST_WRITE cycle=%0d job=%0d external_byte=%08x local_byte=%08x chunk_bytes=%0d lane_offset=%0d beat_data=%0h beat_mask=%0h mem_addr=%08x host_local=%08x host_select_d=%08x host_select_q=%08x sram_select=%b host_word_sel=%0d host_phys_addr=%0d host_phys_data=%0h host_phys_wmask=%0h bank0_wren=%b bank0_addr=%0d bank0_data=%0h bank0_mask=%0h bank1_wren=%b bank1_addr=%0d bank1_data=%0h bank1_mask=%0h",
                                  layer_cycles, dma_jobs + 1,
                                  external_addr + offset, local_addr + offset,
@@ -1328,6 +1333,8 @@ module tb;
                                  dut.sram_top_i.SRAMA_i.addr_1,
                                  dut.sram_top_i.SRAMA_i.indata_1,
                                  dut.sram_top_i.SRAMA_i.wmask_1);
+`endif
+                    end
                     mem_wren = 1'b0;
                     mem_wmask = '0;
                     for (lane = 0; lane < chunk_bytes; lane = lane + 1)
@@ -1364,7 +1371,9 @@ module tb;
                                    (dma_c_read_debug_count < 3);
                     if (trace_c_read) begin
                         dma_c_read_debug_count = dma_c_read_debug_count + 1;
+`ifndef POWER_ACTIVITY
                         $display("DMA_C_READ_REQ n=%0d dram_addr=%08x mem_addr=%08x local=%08x bank_d=%08x bank_q=%08x local_addr=%08x select=%b c_addr0=%08x c_addr1=%08x", dma_c_read_debug_count, external_addr+offset, mem_addr, local_addr+offset, dut.sram_top_i.host_sram_select_d, dut.sram_top_i.host_sram_select_q, dut.sram_top_i.host_local_address, dut.sram_top_i.i_select[2], dut.sram_top_i.SRAMC_i.addr_0, dut.sram_top_i.SRAMC_i.addr_1);
+`endif
                     end
                     @(posedge clk);
                     #1ps;
@@ -1372,6 +1381,7 @@ module tb;
                     if (((local_addr & 32'hffff_0000) == 32'hd00c_0000) &&
                         sramc_host_trace_fd != 0) begin
                         sramc_host_read_count = sramc_host_read_count + 1;
+`ifndef POWER_ACTIVITY
                         $fdisplay(sramc_host_trace_fd,
                             "SRAMC_HOST_EDGE cycle=%0d request_index=%0d request_local_byte=%08x request_external_byte=%08x request_bank_d=%08x response_bank=%08x request_bank_q=%08x select=%b host_local=%08x host_phys=%08x host_word_sel=%0d host_word_sel_q=%0d port_rden=%b bank0_addr=%0d bank0_rden=%b bank0_cen=%b bank0_rdwen=%b bank0_raw=%0h bank1_addr=%0d bank1_rden=%b bank1_cen=%b bank1_rdwen=%b bank1_raw=%0h raw_host=%0h host_mux=%0h host_q=%0h mem_rdata=%0h pending_valid=%b response_offset=%0d response_lane=%0d response_bytes=%0d response_external=%08x",
                             layer_cycles,
@@ -1406,6 +1416,7 @@ module tb;
                             pending_lane_offset,
                             pending_chunk_bytes,
                             external_addr+pending_offset);
+`endif
                     end
                     if (pending_read_valid) begin
                         if (pending_lane_offset + pending_chunk_bytes > MEM_BYTES)
@@ -1417,7 +1428,8 @@ module tb;
                                 beat_data[(pending_lane_offset+lane)*8 +: 8];
                         dma_ext_write_bytes = dma_ext_write_bytes + pending_chunk_bytes;
                     end
-                    if (trace_c_read)
+                    if (trace_c_read) begin
+`ifndef POWER_ACTIVITY
                         $display("DMA_C_READ_RESPONSE n=%0d response_offset=%0d dram_addr=%08x lane_offset=%0d bytes=%0d rdata=%0h c_host=%0h host_out=%0h bank_q=%08x select=%b",
                                  dma_c_read_debug_count,
                                  pending_offset,
@@ -1429,14 +1441,23 @@ module tb;
                                  dut.sram_top_i.host_sram_output,
                                  dut.sram_top_i.host_sram_select_q,
                                  dut.sram_top_i.i_select[2]);
+`endif
+                    end
                     pending_offset = offset;
                     pending_lane_offset = lane_offset;
                     pending_chunk_bytes = chunk_bytes;
+`ifndef POWER_ACTIVITY
                     pending_bank = dut.sram_top_i.host_sram_select_d;
+`else
+                    pending_bank = '0;
+`endif
                     pending_read_valid = 1'b1;
                     mem_rden = 1'b0;
-                    if (trace_c_read)
+                    if (trace_c_read) begin
+`ifndef POWER_ACTIVITY
                         $display("DMA_C_READ_EDGE n=%0d rdata=%0h c_host=%0h bank_d=%08x bank_q=%08x select=%b", dma_c_read_debug_count, mem_rdata, dut.sram_top_i.host_sramc_data, dut.sram_top_i.host_sram_select_d, dut.sram_top_i.host_sram_select_q, dut.sram_top_i.i_select[2]);
+`endif
+                    end
                     repeat (beat_cycles - 1) @(posedge clk);
                 end
                 if (!pending_read_valid)
@@ -1452,7 +1473,8 @@ module tb;
                 #1ps;
                 beat_data = mem_rdata;
                 if (((local_addr & 32'hffff_0000) == 32'hd00c_0000) &&
-                    sramc_host_trace_fd != 0)
+                    sramc_host_trace_fd != 0) begin
+`ifndef POWER_ACTIVITY
                     $fdisplay(sramc_host_trace_fd,
                         "SRAMC_HOST_DRAIN cycle=%0d request_local_byte=%08x request_bank_d=%08x response_bank=%08x request_bank_q=%08x select=%b host_local=%08x host_phys=%08x host_word_sel=%0d host_word_sel_q=%0d port_rden=%b bank0_addr=%0d bank0_rden=%b bank0_cen=%b bank0_rdwen=%b bank0_raw=%0h bank1_addr=%0d bank1_rden=%b bank1_cen=%b bank1_rdwen=%b bank1_raw=%0h raw_host=%0h host_mux=%0h host_q=%0h mem_rdata=%0h response_offset=%0d response_lane=%0d response_bytes=%0d response_external=%08x",
                         layer_cycles,
@@ -1484,6 +1506,8 @@ module tb;
                         pending_lane_offset,
                         pending_chunk_bytes,
                         external_addr+pending_offset);
+`endif
+                end
                 if (pending_lane_offset + pending_chunk_bytes > MEM_BYTES ||
                     pending_offset + pending_chunk_bytes > byte_count)
                     $fatal(1, "final SRAM response tag is outside its transfer bounds");
@@ -1737,6 +1761,7 @@ module tb;
 
         while ((layer_done !== 1'b1) && (layer_cycles < max_cycles_arg)) @(posedge clk);
         if (layer_done !== 1'b1) begin
+`ifndef POWER_ACTIVITY
             $display("TIMEOUT_DEBUG ctrl_start=%b ctrl_ready=%b ctrl_done=%b if_state=%0d dma_state=%0d dma_sub_state=%0d first_dma=%b goto_sauria=%b dma_irq_inputs=%b%b irq_mask=%08x irq_pending=%b dma_bvalid=%b dma_bready=%b dma_aw_pending=%b dma_w_pending=%b", dut.df_controller_i.start_q, dut.df_controller_i.ready_q, dut.df_controller_i.done_q, dut.df_controller_i.sauria_interface_I.state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.sub_state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.first_dma_iter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.goto_sync_sauria, dma_reader_interrupt, dma_writer_interrupt, dma_irq_mask_q, dma_irq_pending_q, dma_b_valid, dma_b_ready, dma_aw_pending, dma_w_pending);
             $display("DMA_START_PENDING reader=%b addr=%08x btt=%0d writer=%b addr=%08x btt=%0d", dma_reader_start_pending_q, dma_reader_start_addr_q, dma_reader_start_btt_q, dma_writer_start_pending_q, dma_writer_start_addr_q, dma_writer_start_btt_q);
             $display("SAURIA_IF_DEBUG state=%0d addr=%08x region=%0d reg_idx=%0d count=%0d addr_sent=%b data_sent=%b start=%b wresp_sync=%b wresp_count=%0d dma_sync=%b core_irq=%b awvalid=%b awready=%b awaddr=%08x wvalid=%b wready=%b wdata=%08x bvalid=%b bready=%b", dut.df_controller_i.sauria_interface_I.state, dut.df_controller_i.sauria_interface_I.addr, dut.df_controller_i.sauria_interface_I.current_addr_region, dut.df_controller_i.sauria_interface_I.sauria_reg_idx, dut.df_controller_i.sauria_interface_I.count, dut.df_controller_i.sauria_interface_I.addr_sent, dut.df_controller_i.sauria_interface_I.data_sent, dut.df_controller_i.sauria_interface_I.start, dut.df_controller_i.sauria_interface_I.wresp_sync_state, dut.df_controller_i.sauria_interface_I.wresp_count, dut.df_controller_i.sauria_interface_I.dma_sync, sauria_done, dut.ctrl_sauria_bus.aw_valid, dut.ctrl_sauria_bus.aw_ready, dut.ctrl_sauria_bus.aw_addr, dut.ctrl_sauria_bus.w_valid, dut.ctrl_sauria_bus.w_ready, dut.ctrl_sauria_bus.w_data, dut.ctrl_sauria_bus.b_valid, dut.ctrl_sauria_bus.b_ready);
@@ -1779,6 +1804,7 @@ module tb;
                      dut.sauria_logic_i.mc_finalwrite, dut.sauria_logic_i.mc_shift_done,
                      dut.sauria_logic_i.mc_outbuf_done);
             $display("DMA_FSM_DEBUG next=%0d first_tile=%b addr=%08x wdata=%08x addr_sent=%b data_sent=%b start=%b start_wresp_sync=%b wresp_sync=%b wresp_count=%0d btt=%0d local_addr=%08x y=%0d/%0d z=%0d/%0d ycounter=%0d zcounter=%0d last_iter=%b ifmaps_change=%b weights_change=%b psums_change=%b", dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.next_action, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.first_tile, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wdata, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.addr_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.data_sent, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.start_wresp_sync, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_sync_state, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.wresp_counter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.btt, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.local_SRAM_addr, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.y, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ylim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.z, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zlim, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ycounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.zcounter, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.last_iter_sig, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.ifmaps_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.weights_change, dut.df_controller_i.sauria_interface_I.sauria_dma_controller_I.psums_change);
+`endif
             $fatal(1, "layer timed out after %0d cycles; DMA jobs=%0d", layer_cycles, dma_jobs);
         end
         measure_active = 1'b0;
@@ -1800,6 +1826,7 @@ module tb;
         sram_write_trace_fd = 0;
         ifmap_stage_trace_fd = 0;
         sramc_host_trace_fd = 0;
+`ifndef POWER_ACTIVITY
         sramc_dump_fd = $fopen({artifact_dir, "/srama-bank0-final.mem"}, "w");
         if (sramc_dump_fd == 0) $fatal(1, "cannot create SRAM A bank 0 dump");
         for (idx = 0; idx < sauria_pkg::SRAMA_DEPTH; idx = idx + 1)
@@ -1830,6 +1857,7 @@ module tb;
         for (idx = 0; idx < sauria_pkg::SRAMC_DEPTH; idx = idx + 1)
             $fdisplay(sramc_dump_fd, "%0h", dut.sram_top_i.SRAMC_i.sram_1_i.mem[idx]);
         $fclose(sramc_dump_fd);
+`endif
         // layer_done is asserted only after the controller has completed its
         // final external write. End the activity window here, before golden
         // readback and reporting work in the testbench.
@@ -1875,6 +1903,14 @@ module tb;
         $finish;
     end
 
+`ifdef POWER_ACTIVITY
+    // The gate-level netlist is flattened. Keep only the public layer counter
+    // needed for activity-window reporting; internal RTL probes are omitted.
+    always @(posedge clk) begin
+        if (rstn && measure_active && layer_cycles < max_cycles_arg)
+            layer_cycles = layer_cycles + 1;
+    end
+`else
     generate
         for (genvar debug_lane = 0; debug_lane < sauria_pkg::Y; debug_lane++) begin : gen_act_drain_trace
             always @(posedge clk) begin
@@ -1934,4 +1970,5 @@ module tb;
                 $display("SAURIA_AXI_B resp=%b", dut.ctrl_sauria_bus.b_resp);
         end
     end
+`endif
 endmodule
