@@ -1882,7 +1882,7 @@ module tb;
     end
 
     generate
-        for (genvar debug_lane = 0; debug_lane < 8; debug_lane++) begin : gen_act_drain_trace
+        for (genvar debug_lane = 0; debug_lane < sauria_pkg::Y; debug_lane++) begin : gen_act_drain_trace
             always @(posedge clk) begin
                 if (rstn && measure_active && layer_cycles >= 11670 && layer_cycles <= 11710 &&
                     dut.sauria_logic_i.main_controller_i.feeders_fsm_i.main_state_q == 5'd7)
