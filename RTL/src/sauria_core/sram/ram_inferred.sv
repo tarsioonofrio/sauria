@@ -51,10 +51,6 @@ module ram_inferred #(
 
 logic [SRAM_W-1:0] mem [(2**ADR_W)-1:0];
 
-`ifdef POWER_ACTIVITY
-integer power_debug_events = 0;
-`endif
-
 // ----------
 // RAM
 // ----------
@@ -63,16 +59,6 @@ always @(posedge i_clk) begin: ram
     
     // Active-low Chip Enable
     if (!i_cen) begin
-
-`ifdef POWER_ACTIVITY
-        if (power_debug_events < 8) begin
-            if (!i_rdwen)
-                $display("SRAM_MODEL_WRITE module=ram_inferred addr=%0d mask=%0h data=%0h", i_addr, i_wmask, i_indata);
-            else
-                $display("SRAM_MODEL_READ module=ram_inferred addr=%0d data=%0h", i_addr, mem[i_addr]);
-            power_debug_events = power_debug_events + 1;
-        end
-`endif
 
         // Write (active low)
         if (!i_rdwen) begin
