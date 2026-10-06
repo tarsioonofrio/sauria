@@ -78,15 +78,20 @@ if [[ -n "${SIM_CASES:-}" ]]; then
 elif [[ "$CONFIG_ROOT" == */fp16_8x16 ]]; then
     case_list=(conv-small conv-large)
 elif [[ "$(basename "$CONFIG_ROOT")" == int16_* ]]; then
-    array_size=${CONFIG_ROOT##*_}
-    array_size=${array_size%%x*}
-    case_list=("conv-x$((array_size < 3 ? array_size : 3))-y$array_size")
+    case "$(basename "$CONFIG_ROOT")" in
+        int16_2x2) case_list=(conv-x1-y2) ;;
+        int16_3x3|int16_4x4) case_list=(conv-x3-y3) ;;
+        int16_5x5) case_list=(conv-x3-y5) ;;
+        int16_6x6) case_list=(conv-x3-y6) ;;
+        int16_7x7|int16_8x8) case_list=(conv-x3-y6) ;;
+        *) echo "Unsupported INT16 profile: $(basename "$CONFIG_ROOT")" >&2; exit 2 ;;
+    esac
 else
     case_list=(conv gemm)
 fi
 for case_name in "${case_list[@]}"; do
     case "$(basename "$CONFIG_ROOT"):$case_name" in
-        fp16_8x16:conv-small|fp16_8x16:conv-large|int8_32x32:conv|int8_32x32:gemm|int8_32x32:conv-x3-y3|int16_2x2:conv-x2-y2|int16_3x3:conv-x3-y3|int16_4x4:conv-x3-y4|int16_5x5:conv-x3-y5|int16_6x6:conv-x3-y6|int16_7x7:conv-x3-y7|int16_8x8:conv-x3-y8) ;;
+        fp16_8x16:conv-small|fp16_8x16:conv-large|int8_32x32:conv|int8_32x32:gemm|int8_32x32:conv-x3-y3|int16_2x2:conv-x1-y2|int16_3x3:conv-x3-y3|int16_4x4:conv-x3-y3|int16_5x5:conv-x3-y5|int16_6x6:conv-x3-y6|int16_7x7:conv-x3-y6|int16_8x8:conv-x3-y6) ;;
         *) echo "Unsupported SIM_CASES entry for $(basename "$CONFIG_ROOT"): $case_name" >&2; exit 2 ;;
     esac
 done
