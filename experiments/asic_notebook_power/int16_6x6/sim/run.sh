@@ -188,9 +188,9 @@ SCALE_TYPE = "FROM_MAXIMUM";
 SDF
         (
             cd "$CASE_ROOT/gate"
-            xrun -f "$SIM_ROOT/args.txt" -sdf_cmd_file "$CASE_ROOT/gate-sdf.cmd" -maxdelays \
+                xrun -f "$SIM_ROOT/args.txt" -sdf_cmd_file "$CASE_ROOT/gate-sdf.cmd" -maxdelays \
                 "${include_args[@]}" "${define_args[@]}" -define XRUN -define POWER_ACTIVITY \
-                "$CELL_MODELS" "$RAM_RTL" "$GATE_NETLIST" "$TB" -run -exit \
+                "$CELL_MODELS" "$RAM_RTL" "$GIT_ROOT/RTL/src/sauria_pkg.sv" "$GATE_NETLIST" "$TB" -run -exit \
                 -l "$CASE_ROOT/gate-xrun.log" "${PLUSARGS[@]}" +DUMP_SHM \
                 "+ARTIFACT_DIR=$CASE_ROOT/gate"
         )
