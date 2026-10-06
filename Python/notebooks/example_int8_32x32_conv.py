@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the 3x3 INT8 convolution through SAURIA's original subsystem testbench."""
+"""Run a 3x3 integer convolution through SAURIA's original subsystem testbench."""
 
 from __future__ import annotations
 
@@ -32,6 +32,13 @@ def parse_args() -> argparse.Namespace:
         default=8,
         help="physical systolic array dimension N for an NxN array (default: %(default)s)",
     )
+    parser.add_argument(
+        "--operand-bits",
+        type=int,
+        choices=(8, 16),
+        default=8,
+        help="integer activation/weight bit width (16-bit mode is available for 8x8)",
+    )
     return parser.parse_args()
 
 
@@ -53,10 +60,12 @@ def main() -> None:
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    version = f"int8_{args.array_size}x{args.array_size}"
+    if args.operand_bits == 16 and args.array_size != 8:
+        raise ValueError("the int16 profile is currently available only for an 8x8 array")
+    version = f"int{args.operand_bits}_{args.array_size}x{args.array_size}"
     hw_params = hwv.get_params(version)
     print(
-        f"SAURIA subsystem: 3x3 INT8 convolution | version={version} "
+        f"SAURIA subsystem: 3x3 integer convolution | version={version} "
         f"| seed={args.seed}"
     )
 
@@ -83,20 +92,23 @@ def main() -> None:
         dtype=torch.int8,
     )
     bias_torch = torch.randint(-127, 127, (channels_out, 1, 1), dtype=torch.int8)
-    golden_torch = (bias_torch + torch_functional.conv2d(
+    golden_wide = (bias_torch.double() + torch_functional.conv2d(
         input_torch.double(),
         weight_torch.double(),
         stride=stride,
         padding=0,
         dilation=dilation,
-    )).to(torch.int32)
+    )).numpy().astype(np.int64)
+    output_mask = (1 << hw_params["OC_W"]) - 1
+    output_sign = 1 << (hw_params["OC_W"] - 1)
+    golden = ((golden_wide + output_sign) & output_mask) - output_sign
+    golden = golden.astype(np.int32)
 
     input_tensor = input_torch.numpy()
     weight_tensor = weight_torch.numpy()
     preload = np.broadcast_to(
         bias_torch.numpy().astype(np.int32), (channels_out, output_h, output_w)
     ).copy()
-    golden = golden_torch.numpy()
     tensor_shapes = [input_tensor.shape, weight_tensor.shape, golden.shape]
     x_used = max(
         size
@@ -147,7 +159,10 @@ def main() -> None:
     np.testing.assert_array_equal(output, golden)
 
     checksum = hashlib.sha256(np.asarray(output, dtype="<i4").tobytes()).hexdigest()
-    print("TEST PASSED (full layer matches the direct int32 convolution)")
+    print(
+        "TEST PASSED (full layer matches direct convolution with signed "
+        f"{hw_params['OC_W']}-bit output wrap)"
+    )
     print(f"LAYER_CYCLES={stats['total_cycles']}")
     print(f"OUTPUT_SHA256={checksum}")
     print(f"Official stimuli/results directory: {TEST_DIR}")

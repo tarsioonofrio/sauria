@@ -96,9 +96,11 @@ def get_params(version):
         HOPTS["add_type"] =            4
         HOPTS["A"] =                   16
 
-    elif version in {"int8_2x2", "int8_3x3", "int8_4x4", "int8_5x5", "int8_6x6", "int8_8x8"}:
+    elif version in {"int8_2x2", "int8_3x3", "int8_4x4", "int8_5x5", "int8_6x6", "int8_8x8", "int16_8x8"}:
 
         array_size = int(version.split("_")[1].split("x")[0])
+        operand_width = 16 if version == "int16_8x8" else 8
+        output_width = 16 if version == "int16_8x8" else 32
 
         # Memory Sizes
         # *******************************************
@@ -124,9 +126,9 @@ def get_params(version):
         
         # Arithmetic options
         # *******************************************
-        HOPTS["IA_W"] =                8       # IFmap bits
-        HOPTS["IB_W"] =                8       # Weight bits
-        HOPTS["OC_W"] =                32      # Partial sum bits
+        HOPTS["IA_W"] =                operand_width  # IFmap bits
+        HOPTS["IB_W"] =                operand_width  # Weight bits
+        HOPTS["OC_W"] =                output_width   # Partial sum bits
         HOPTS["OP_TYPE"] =             0       # 0 for int, 1 for FP
 
         # FP configuration
