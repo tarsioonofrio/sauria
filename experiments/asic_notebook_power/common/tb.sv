@@ -1378,7 +1378,11 @@ module tb;
 `endif
                     end
                     @(posedge clk);
+`ifdef POWER_ACTIVITY
+                    #500ps;
+`else
                     #1ps;
+`endif
                     beat_data = mem_rdata;
 `ifdef POWER_ACTIVITY
                     if (((local_addr & 32'h003c_0000) == 32'h000c_0000) &&
@@ -1482,7 +1486,11 @@ module tb;
                 mem_addr = (local_addr + pending_offset) & ~(MEM_BYTES-1);
                 mem_rden = 1'b1;
                 @(posedge clk);
+`ifdef POWER_ACTIVITY
+                #500ps;
+`else
                 #1ps;
+`endif
                 beat_data = mem_rdata;
                 if (((local_addr & 32'hffff_0000) == 32'hd00c_0000) &&
                     sramc_host_trace_fd != 0) begin
