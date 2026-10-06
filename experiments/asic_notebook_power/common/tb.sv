@@ -1244,6 +1244,7 @@ module tb;
         integer pending_offset;
         integer pending_lane_offset;
         integer pending_chunk_bytes;
+        integer gate_host_read_debug_count;
         logic [31:0] pending_bank;
         logic pending_read_valid;
         begin
@@ -1359,6 +1360,7 @@ module tb;
                 pending_offset = 0;
                 pending_lane_offset = 0;
                 pending_chunk_bytes = 0;
+                gate_host_read_debug_count = 0;
                 pending_bank = '0;
                 for (offset = 0; offset < byte_count; offset = offset + chunk_bytes) begin
                     lane_offset = (local_addr + offset) & (MEM_BYTES-1);
@@ -1378,6 +1380,16 @@ module tb;
                     @(posedge clk);
                     #1ps;
                     beat_data = mem_rdata;
+`ifdef POWER_ACTIVITY
+                    if (((local_addr & 32'h003c_0000) == 32'h000c_0000) &&
+                        gate_host_read_debug_count < 12) begin
+                        $display("GATE_HOST_C_READ n=%0d req_local=%08x req_external=%08x mem_addr=%08x pending_offset=%0d pending_lane=%0d pending_bytes=%0d data=%0h",
+                                 gate_host_read_debug_count, local_addr+offset,
+                                 external_addr+offset, mem_addr, pending_offset,
+                                 pending_lane_offset, pending_chunk_bytes, beat_data);
+                        gate_host_read_debug_count = gate_host_read_debug_count + 1;
+                    end
+`endif
                     if (((local_addr & 32'hffff_0000) == 32'hd00c_0000) &&
                         sramc_host_trace_fd != 0) begin
                         sramc_host_read_count = sramc_host_read_count + 1;
