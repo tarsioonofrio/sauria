@@ -1,0 +1,78 @@
+{
+  "campaign_date": "2026-10-06",
+  "workload": {
+    "ifmap": [3, 32, 32],
+    "weights": [3, 3, 3, 3],
+    "ofmap": [3, 30, 30],
+    "operand_bits": 16,
+    "checksum": "2e979e73"
+  },
+  "technology": "TSMC28",
+  "pvt": "TT 0.90 V 25 C",
+  "target_frequency_mhz": 500,
+  "clock_period_ns": 2,
+  "sram_power_included": false,
+  "energy_note": "Estimated as Joules total power multiplied by layer cycles and target clock period; SRAM power is excluded.",
+  "results": [
+    {
+      "array": "2x2",
+      "x_used": 1,
+      "y_used": 2,
+      "standard_cell_area_um2": 26145.504,
+      "layer_cycles": 74686,
+      "wns_ps": -39.1,
+      "power_mw": 4.27515,
+      "output_checksum": "2e979e73",
+      "run_id": "int16-2x2-20261006-7203a71",
+      "source_commit": "7203a710d5b4cd738c73036eb8d0cf461de5ea54"
+    },
+    {
+      "array": "3x3",
+      "x_used": 3,
+      "y_used": 3,
+      "standard_cell_area_um2": 35790.804,
+      "layer_cycles": 12256,
+      "wns_ps": -39.1,
+      "power_mw": 10.3423,
+      "output_checksum": "2e979e73",
+      "run_id": "int16-3x3-20261006-27cad00",
+      "source_commit": "27cad007fa6fb5ae9b169575225a7b23abea2c82"
+    },
+    {
+      "array": "4x4",
+      "x_used": 3,
+      "y_used": 3,
+      "standard_cell_area_um2": 40381.992,
+      "layer_cycles": 18034,
+      "wns_ps": -39.1,
+      "power_mw": 9.30671,
+      "output_checksum": "2e979e73",
+      "run_id": "int16-4x4-20261006-7203a71",
+      "source_commit": "7203a710d5b4cd738c73036eb8d0cf461de5ea54"
+    },
+    {
+      "array": "5x5",
+      "x_used": 3,
+      "y_used": 5,
+      "standard_cell_area_um2": 56545.146,
+      "layer_cycles": 11740,
+      "wns_ps": -35.2,
+      "power_mw": 13.43,
+      "output_checksum": "2e979e73",
+      "run_id": "int16-5x5-20261006-27cad00",
+      "source_commit": "27cad007fa6fb5ae9b169575225a7b23abea2c82"
+    },
+    {
+      "array": "6x6",
+      "x_used": 3,
+      "y_used": 6,
+      "standard_cell_area_um2": 64618.218,
+      "layer_cycles": 10810,
+      "wns_ps": -35.2,
+      "power_mw": 15.3491,
+      "output_checksum": "2e979e73",
+      "run_id": "int16-6x6-20261006-1dd3f24",
+      "source_commit": "1dd3f24de711ae95a90aff9ffc8c80bad8106037"
+    }
+  ]
+}
