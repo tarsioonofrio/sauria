@@ -28,6 +28,7 @@
 module wei_idxcnt #(
     parameter IDX_W = 11,
     parameter ADRB_W = 8,
+    parameter SRAMB_N = 8,
     parameter WOFS_W = 3,
     parameter PARAMS_W = 8
 )(
@@ -156,7 +157,7 @@ always_comb begin
         transition_flag = aux_ov_flag;
 
     end else begin
-        transition_flag = (sram_idx_q[IDX_W-1:WOFS_W] != sram_idx_d[IDX_W-1:WOFS_W]) && (!i_waligned);
+        transition_flag = ((sram_idx_q / SRAMB_N) != (sram_idx_d / SRAMB_N)) && (!i_waligned);
     end
 end
 
@@ -233,7 +234,7 @@ always_ff @(posedge i_clk or negedge i_rstn) begin : out_shimming_reg
 
         // SRAM index register & done flag are gated by counter enable (pipeline stall)
         end else if (i_cnt_en) begin
-            woffs_outshim <=        sram_idx_q[WOFS_W-1:0];
+            woffs_outshim <=        sram_idx_q % SRAMB_N;
             transition_q2 <=        transition_q1;
             outbounds_outshim <=    outbounds_q;
         end
@@ -245,7 +246,7 @@ end
 // ------------------------
 
 // Addresses
-assign o_sram_addr =    sram_idx_q[IDX_W-1:WOFS_W];
+assign o_sram_addr =    sram_idx_q / SRAMB_N;
 assign o_woffs =        woffs_outshim;
 
 // Flags

@@ -204,6 +204,7 @@ end
 wei_idxcnt #(
         .IDX_W(IDX_W),
         .ADRB_W(ADRB_W),
+        .SRAMB_N(SRAMB_N),
         .WOFS_W(WOFS_W),
         .PARAMS_W(PARAMS_W)
     ) wei_idxcnt_i
