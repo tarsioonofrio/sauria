@@ -179,7 +179,7 @@ for case_name in "${case_list[@]}"; do
         GATE_SDF="$RESULTS/gate_level/sauria_asic_top_analysis_view_0p90v_25c_captyp_nominal.sdf"
         [[ -s "$GATE_SDF" ]] || { echo "Missing nominal gate SDF: $GATE_SDF" >&2; exit 5; }
         cat > "$CASE_ROOT/gate-sdf.cmd" <<SDF
-SDF_FILE = $GATE_SDF,
+SDF_FILE = "$GATE_SDF",
 LOG_FILE = "$CASE_ROOT/gate/sdf_log.log",
 SCOPE = tb.dut;
 MTM_CONTROL = "MAXIMUM",
