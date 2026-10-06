@@ -97,6 +97,8 @@ localparam int ACCEL_WMASK_W = SRAM_W/SRAM_N;
 localparam int LOGICAL_DEPTH = 2**ADR_W;
 localparam int PHYSICAL_DEPTH = (LOGICAL_DEPTH + ACCEL_N - 1) / ACCEL_N;
 localparam int ACTUAL_ADR_W = (PHYSICAL_DEPTH > 1) ? $clog2(PHYSICAL_DEPTH) : 1;
+localparam int HOST_WORD_DEPTH = PHYSICAL_DEPTH * HOST_N;
+localparam int HOST_ADDR_W = (HOST_WORD_DEPTH > 1) ? $clog2(HOST_WORD_DEPTH) : 1;
 localparam int HOST_SEL_W = (HOST_N > 1) ? $clog2(HOST_N) : 1;
 
 // ----------
@@ -114,6 +116,7 @@ logic [0:ACCEL_N-1][SRAM_W-1:0] accel_rdata_elements;
 
 // Host-side - Signal adaptation
 logic [ACTUAL_ADR_W-1:0]        host_phys_addr;
+logic [HOST_ADDR_W-1:0]         host_local_word_addr;
 logic [ACTUAL_SRAM_W-1:0]       host_phys_data;
 logic [ACTUAL_SRAM_W-1:0]       host_phys_wmask;
 logic [HOST_SEL_W-1:0]          host_word_sel, host_word_sel_shim_q;
@@ -137,8 +140,11 @@ logic [SRAM_W-1:0]              accel_outdata_sel;
 // modulo also support non-power-of-two width ratios.
 // ------------------------------------------------------------
 
-assign host_word_sel = HOST_SEL_W'(int'(i_address) % HOST_N);
-assign host_phys_addr = ACTUAL_ADR_W'(int'(i_address) / HOST_N);
+// The host address can include the SAURIA/DMA address-space prefix. Only its
+// low local word-address bits index this SRAM; high bits must not affect packing.
+assign host_local_word_addr = i_address[HOST_ADDR_W-1:0];
+assign host_word_sel = HOST_SEL_W'(int'(host_local_word_addr) % HOST_N);
+assign host_phys_addr = ACTUAL_ADR_W'(int'(host_local_word_addr) / HOST_N);
 assign accel_word_sel = ACCEL_N_BITS'(int'(i_sram_addr) % ACCEL_N);
 assign accel_phys_addr = ACTUAL_ADR_W'(int'(i_sram_addr) / ACCEL_N);
 
