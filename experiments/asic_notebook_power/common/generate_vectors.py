@@ -64,7 +64,9 @@ PROFILES = {
 }
 
 for array_size in (2, 3, 4, 5, 6, 7, 8):
-    case_name = f"conv-x{min(3, array_size)}-y{array_size}"
+    x_used = max(value for value in (1, 3) if value <= array_size)
+    y_used = max(value for value in (1, 2, 3, 5, 6, 10, 15, 30) if value <= array_size)
+    case_name = f"conv-x{x_used}-y{y_used}"
     PROFILES[f"int16_{array_size}x{array_size}"] = {
         "version": f"int16_{array_size}x{array_size}",
         "memory_depths": (2048, 2048, 1024),
@@ -76,8 +78,8 @@ for array_size in (2, 3, 4, 5, 6, 7, 8):
                 "tiling": {
                     "C_tile_shape": [3, 10, 30],
                     "tile_cin": 3,
-                    "X_used": min(3, array_size),
-                    "Y_used": array_size,
+                    "X_used": x_used,
+                    "Y_used": y_used,
                 },
                 "seed": 20261004,
             },

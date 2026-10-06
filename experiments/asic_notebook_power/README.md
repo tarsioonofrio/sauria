@@ -105,9 +105,12 @@ SIM_CASES=conv-x3-y3 RUN_ID=<unique-run-id> ./experiments/asic_notebook_power/ru
 ```
 
 The signed INT16 array sweep uses the same 3x32x32 layer, filter, output shape,
-seed, and 16-bit signed operands/partial sums for every array. `Y_used` equals
-the physical array height, while `X_used=min(3, X)` because the layer has three
-output channels. The 7x7 RTL profile is provided alongside the preexisting
+seed, and 16-bit signed operands/partial sums for every array. To satisfy the
+workload tiling constraints, `X_used` is the largest divisor of the three
+output channels no larger than the physical X size, and `Y_used` is the largest
+divisor of the output width (30) no larger than the physical Y size. Thus 2x2
+uses 1x2, 3x3 uses 3x3, 4x4 uses 3x3, 5x5 uses 3x5, 6x6 uses 3x6, and 7x7
+uses 3x6 active PEs. The 7x7 RTL profile is provided alongside the preexisting
 2x2, 3x3, 4x4, 5x5, 6x6, and 8x8 profiles. Each flow writes results into its
 own `int16_NxN` directory and immutable run-id paths.
 
