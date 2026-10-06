@@ -61,6 +61,19 @@ PROFILES = {
             },
         },
     },
+    "int16_6x6": {
+        "version": "int16_6x6",
+        "memory_depths": (2048, 2048, 1024),
+        # SRAM A/C carry Y lanes; SRAM B carries X lanes.
+        "lanes": (6, 6, 6),
+        "cases": {
+            "conv-x3-y6": {
+                "shapes": ([3, 32, 32], [3, 3, 3, 3], [3, 30, 30]),
+                "tiling": {"C_tile_shape": [3, 10, 30], "tile_cin": 3, "X_used": 3, "Y_used": 6},
+                "seed": 20261004,
+            },
+        },
+    },
 }
 
 

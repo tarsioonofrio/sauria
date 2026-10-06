@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-PROFILE=${1:?usage: run_campaign.sh fp16_8x16|int8_32x32}
+PROFILE=${1:?usage: run_campaign.sh fp16_8x16|int8_32x32|int16_6x6}
 case "$PROFILE" in
     fp16_8x16) CASES=(conv-small conv-large) ;;
     int8_32x32) CASES=(conv gemm) ;;
+    int16_6x6) CASES=(conv-x3-y6) ;;
     *) echo "Unknown profile: $PROFILE" >&2; exit 2 ;;
 esac
 if [[ -n "${SIM_CASES:-}" ]]; then
@@ -12,7 +13,7 @@ if [[ -n "${SIM_CASES:-}" ]]; then
     ((${#CASES[@]} > 0)) || { echo "SIM_CASES must name at least one workload" >&2; exit 2; }
     for case_name in "${CASES[@]}"; do
         case "$PROFILE:$case_name" in
-            fp16_8x16:conv-small|fp16_8x16:conv-large|int8_32x32:conv|int8_32x32:gemm|int8_32x32:conv-x3-y3) ;;
+            fp16_8x16:conv-small|fp16_8x16:conv-large|int8_32x32:conv|int8_32x32:gemm|int8_32x32:conv-x3-y3|int16_6x6:conv-x3-y6) ;;
             *) echo "Unknown workload for $PROFILE: $case_name" >&2; exit 2 ;;
         esac
     done

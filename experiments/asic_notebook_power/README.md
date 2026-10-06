@@ -8,6 +8,7 @@ Python notebooks**, separate from `experiments/asic_isoarea` and its signed
 | --- | --- | --- | --- |
 | `fp16_8x16` | X=16, Y=8 | SAURIA FP16, 16-bit operands/partial sums | 2048 / 1024 / 2048 words |
 | `int8_32x32` | X=32, Y=32 | signed 8-bit operands, signed 32-bit partial sums | 2048 / 2048 / 1024 words |
+| `int16_6x6` | X=6, Y=6 | signed 16-bit operands/partial sums | 2048 / 2048 / 1024 words |
 
 Both target TSMC 28 nm Genus/Xcelium/Joules at 500 MHz (2 ns). The campaign
 sequence is full-layer RTL golden simulation, logical synthesis, gate-level
@@ -24,6 +25,7 @@ The deterministic workloads are:
 | int8 | `conv` | 64x66x66 | 64x64x3x3 | 64x64x64 |
 | int8 | `gemm` | 512x1x256 | 512x512x1x1 | 512x1x256 |
 | int8 | `conv-x3-y3` | 3x32x32 | 3x3x3x3 | 3x30x30 |
+| int16 | `conv-x3-y6` | 3x32x32 | 3x3x3x3 | 3x30x30 |
 
 Notebook cells use unseeded random tensors. These flows generate seeded,
 reproducible tensors with the same shapes, numeric formats, and tile shapes for
@@ -102,10 +104,18 @@ simulation, and Joules power, use:
 SIM_CASES=conv-x3-y3 RUN_ID=<unique-run-id> ./experiments/asic_notebook_power/run_campaign.sh int8_32x32
 ```
 
+The 6x6 signed INT16 pilot uses the same 3x32x32 layer shape with
+`X_used=3`, `Y_used=6`, 16-bit operands/partial sums, and a 2 ns clock:
+
+```bash
+SIM_CASES=conv-x3-y6 RUN_ID=<unique-run-id> ./experiments/asic_notebook_power/run_campaign.sh int16_6x6
+```
+
 The RTL layer check omits SHM dumping and per-cycle feeder traces by default to
 keep large functional runs manageable. Gate-level simulation still records
 `dut.shm` for Joules. Set `TRACE_DETAIL=1` when debugging to emit the detailed
 SRAM and feeder traces in either simulation stage.
 
-Supported cases are `conv-small` and `conv-large` for `fp16_8x16`, and `conv`,
-`gemm`, and `conv-x3-y3` for `int8_32x32`.
+Supported cases are `conv-small` and `conv-large` for `fp16_8x16`, `conv`,
+`gemm`, and `conv-x3-y3` for `int8_32x32`, and `conv-x3-y6` for
+`int16_6x6`.
