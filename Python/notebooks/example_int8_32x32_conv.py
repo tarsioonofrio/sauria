@@ -35,9 +35,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--operand-bits",
         type=int,
-        choices=(8, 16),
-        default=8,
-        help="integer activation/weight bit width (16-bit mode is available for 8x8)",
+        choices=(16,),
+        default=16,
+        help="integer activation/weight/output bit width (default: %(default)s)",
     )
     parser.add_argument(
         "--no-compile",
@@ -72,8 +72,6 @@ def main() -> None:
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    if args.operand_bits == 16 and args.array_size != 8:
-        raise ValueError("the int16 profile is currently available only for an 8x8 array")
     version = f"int{args.operand_bits}_{args.array_size}x{args.array_size}"
     hw_params = hwv.get_params(version)
     print(

@@ -96,11 +96,11 @@ def get_params(version):
         HOPTS["add_type"] =            4
         HOPTS["A"] =                   16
 
-    elif version in {"int8_2x2", "int8_3x3", "int8_4x4", "int8_5x5", "int8_6x6", "int8_8x8", "int16_8x8"}:
+    elif version in {"int16_2x2", "int16_3x3", "int16_4x4", "int16_5x5", "int16_6x6", "int16_8x8"}:
 
         array_size = int(version.split("_")[1].split("x")[0])
-        operand_width = 16 if version == "int16_8x8" else 8
-        output_width = 16 if version == "int16_8x8" else 32
+        operand_width = 16
+        output_width = 16
 
         # Memory Sizes
         # *******************************************

@@ -23,9 +23,9 @@
 
 // Precision Configuration
 `define ARITHMETIC   0              // Arithmetic representation (0=INT    1=FP)
-`define IA_W   8                    // Activation operand bit width
-`define IB_W   8                    // Weight operand bit width
-`define OC_W   32                   // Output (psum) operand bit width
+`define IA_W   16                   // Activation operand bit width
+`define IB_W   16                   // Weight operand bit width
+`define OC_W   16                  // Output (psum) operand bit width
 
 // FP Arithmetic definitions (LINKED TO FP_NEW PARAMS - DO NOT CHANGE)
 `define FP_W    0                   // Total number of bits
