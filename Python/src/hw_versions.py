@@ -96,7 +96,7 @@ def get_params(version):
         HOPTS["add_type"] =            4
         HOPTS["A"] =                   16
 
-    elif version in {"int16_2x2", "int16_3x3", "int16_4x4", "int16_5x5", "int16_6x6", "int16_8x8"}:
+    elif version in {"int16_2x2", "int16_3x3", "int16_4x4", "int16_5x5", "int16_6x6", "int16_7x7", "int16_8x8"}:
 
         array_size = int(version.split("_")[1].split("x")[0])
         operand_width = 16

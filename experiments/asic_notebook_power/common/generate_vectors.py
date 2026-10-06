@@ -61,20 +61,28 @@ PROFILES = {
             },
         },
     },
-    "int16_6x6": {
-        "version": "int16_6x6",
+}
+
+for array_size in (2, 3, 4, 5, 6, 7, 8):
+    case_name = f"conv-x{min(3, array_size)}-y{array_size}"
+    PROFILES[f"int16_{array_size}x{array_size}"] = {
+        "version": f"int16_{array_size}x{array_size}",
         "memory_depths": (2048, 2048, 1024),
         # SRAM A/C carry Y lanes; SRAM B carries X lanes.
-        "lanes": (6, 6, 6),
+        "lanes": (array_size, array_size, array_size),
         "cases": {
-            "conv-x3-y6": {
+            case_name: {
                 "shapes": ([3, 32, 32], [3, 3, 3, 3], [3, 30, 30]),
-                "tiling": {"C_tile_shape": [3, 10, 30], "tile_cin": 3, "X_used": 3, "Y_used": 6},
+                "tiling": {
+                    "C_tile_shape": [3, 10, 30],
+                    "tile_cin": 3,
+                    "X_used": min(3, array_size),
+                    "Y_used": array_size,
+                },
                 "seed": 20261004,
             },
         },
-    },
-}
+    }
 
 
 def update_memory_depths(hopts: dict, depths: tuple[int, int, int]) -> None:

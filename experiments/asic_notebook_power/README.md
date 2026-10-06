@@ -8,7 +8,7 @@ Python notebooks**, separate from `experiments/asic_isoarea` and its signed
 | --- | --- | --- | --- |
 | `fp16_8x16` | X=16, Y=8 | SAURIA FP16, 16-bit operands/partial sums | 2048 / 1024 / 2048 words |
 | `int8_32x32` | X=32, Y=32 | signed 8-bit operands, signed 32-bit partial sums | 2048 / 2048 / 1024 words |
-| `int16_6x6` | X=6, Y=6 | signed 16-bit operands/partial sums | 2048 / 2048 / 1024 words |
+| `int16_NxN` | X=Y=2, 3, 4, 5, 6, 7, or 8 | signed 16-bit operands/partial sums | 2048 / 2048 / 1024 words |
 
 Both target TSMC 28 nm Genus/Xcelium/Joules at 500 MHz (2 ns). The campaign
 sequence is full-layer RTL golden simulation, logical synthesis, gate-level
@@ -104,8 +104,15 @@ simulation, and Joules power, use:
 SIM_CASES=conv-x3-y3 RUN_ID=<unique-run-id> ./experiments/asic_notebook_power/run_campaign.sh int8_32x32
 ```
 
-The 6x6 signed INT16 pilot uses the same 3x32x32 layer shape with
-`X_used=3`, `Y_used=6`, 16-bit operands/partial sums, and a 2 ns clock:
+The signed INT16 array sweep uses the same 3x32x32 layer, filter, output shape,
+seed, and 16-bit signed operands/partial sums for every array. `Y_used` equals
+the physical array height, while `X_used=min(3, X)` because the layer has three
+output channels. The 7x7 RTL profile is provided alongside the preexisting
+2x2, 3x3, 4x4, 5x5, 6x6, and 8x8 profiles. Each flow writes results into its
+own `int16_NxN` directory and immutable run-id paths.
+
+For example, the 6x6 signed INT16 case uses `X_used=3`, `Y_used=6`, and a 2 ns
+clock:
 
 ```bash
 SIM_CASES=conv-x3-y6 RUN_ID=<unique-run-id> ./experiments/asic_notebook_power/run_campaign.sh int16_6x6
@@ -116,6 +123,7 @@ keep large functional runs manageable. Gate-level simulation still records
 `dut.shm` for Joules. Set `TRACE_DETAIL=1` when debugging to emit the detailed
 SRAM and feeder traces in either simulation stage.
 
-Supported cases are `conv-small` and `conv-large` for `fp16_8x16`, `conv`,
-`gemm`, and `conv-x3-y3` for `int8_32x32`, and `conv-x3-y6` for
-`int16_6x6`.
+Supported INT16 cases are `conv-x2-y2`, `conv-x3-y3`, `conv-x3-y4`,
+`conv-x3-y5`, `conv-x3-y6`, `conv-x3-y7`, and `conv-x3-y8`, for profiles
+`int16_2x2` through `int16_8x8`. Other cases are `conv-small` and `conv-large`
+for `fp16_8x16`, and `conv`, `gemm`, and `conv-x3-y3` for `int8_32x32`.
