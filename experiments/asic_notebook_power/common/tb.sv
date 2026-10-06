@@ -1140,13 +1140,7 @@ module tb;
     assign dma_reader_interrupt = dma_irq_pending_q[0] && dma_irq_mask_q[0];
     assign dma_writer_interrupt = dma_irq_pending_q[1] && dma_irq_mask_q[1];
 
-    sauria_asic_top #(
-        .CFG_W(32),
-        .CFG_ADDR_W(32),
-        .MEM_W(MEM_W),
-        .MEM_ADDR_W(32),
-        .EXTENDED_HOST_MAP(0)
-    ) dut (
+    sauria_asic_top dut (
         .i_clk(clk),
         .i_rstn(rstn),
         .i_ctrl_aw_valid(ctrl_aw_valid),
