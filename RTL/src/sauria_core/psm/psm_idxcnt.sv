@@ -169,8 +169,8 @@ assign kk_idx =     til_idx + k_idx;
 assign sram_idx_d = x_idx + kk_idx;
 
 // Address & Word Offset
-assign sram_addr_d =        sram_idx_d[IDX_W:WOFS_W];
-assign woffs_d =            sram_idx_d[WOFS_W-1:0];
+assign sram_addr_d =        sram_idx_d / SRAMC_N;
+assign woffs_d =            sram_idx_d % SRAMC_N;
 
 // ----------------------------------
 // Transition flag logic & register
@@ -199,13 +199,13 @@ end
 always_comb begin
 
     // Current Index Zero: first index of current address
-    idx_zero_current = sram_addr_d << WOFS_W;
+    idx_zero_current = sram_addr_d * SRAMC_N;
 
     // Index End: points to the very last element needed    
     idx_end = kk_idx + i_cxlim - (SRAMC_N + 1);
 
     // Woffs End: word offset of above
-    woffs_end = idx_end[WOFS_W-1:0];
+    woffs_end = idx_end % SRAMC_N;
 
     // Last position flag: indicates when are we reading the last SRAM word
     last_pos_flag = (idx_zero_current + (SRAMC_N-1)) >= idx_end;
