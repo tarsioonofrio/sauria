@@ -44,11 +44,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="reuse the Verilator binary already compiled for the selected RTL profile",
     )
+    parser.add_argument(
+        "--test-dir",
+        type=Path,
+        default=TEST_DIR,
+        help="directory for generated stimuli and simulation outputs (default: %(default)s)",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    test_dir = args.test_dir.expanduser().resolve()
     sys.path.insert(0, str(PYTHON_DIR))
 
     from dotenv import load_dotenv
@@ -164,7 +171,7 @@ def main() -> None:
         generate_vcd=False,
         assert_no_errors=True,
         print_statistics=True,
-        test_dir=str(TEST_DIR),
+        test_dir=str(test_dir),
         silent=False,
     )
     output = np.asarray(output, dtype=np.int32)
@@ -177,7 +184,7 @@ def main() -> None:
     )
     print(f"LAYER_CYCLES={stats['total_cycles']}")
     print(f"OUTPUT_SHA256={checksum}")
-    print(f"Official stimuli/results directory: {TEST_DIR}")
+    print(f"Stimuli/results directory: {test_dir}")
 
 
 if __name__ == "__main__":
