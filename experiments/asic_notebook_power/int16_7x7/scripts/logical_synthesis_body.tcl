@@ -92,6 +92,7 @@ report_timing -unconstrained > [file join $OUT_FILES reports ${TOP_MODULE}_timin
 puts "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 puts "Write netlist"
 puts "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+::legacy::set_attribute write_vlog_empty_module_for_logic_abstract false /
 write_hdl > [file join $OUT_FILES gate_level ${TOP_MODULE}_logic_mapped.v]
 
 set CURRENT_VIEW analysis_view_0p81v_125c_capwst_slowest
