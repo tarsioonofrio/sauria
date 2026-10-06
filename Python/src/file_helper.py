@@ -170,6 +170,14 @@ def parse_test_outputs(HOPTS, tensor_size, test_dir="../../test"):
     for i in range(N_bytes):
         out_values += (out_bytes[i::N_bytes] << 8*(i))
 
+    # Integer outputs are two's-complement words. Convert them to signed
+    # values before comparing with the Python convolution reference.
+    if HOPTS['OP_TYPE'] == 0:
+        sign_bit = 1 << (HOPTS['OC_W'] - 1)
+        word_mask = (1 << HOPTS['OC_W']) - 1
+        out_values &= word_mask
+        out_values[out_values >= sign_bit] -= 1 << HOPTS['OC_W']
+
     # Read statistics outputs
     stats_outputs = np.atleast_1d(np.loadtxt(test_dir / "outputs/test_stats.txt", dtype=int))
     if stats_outputs.size < 4:

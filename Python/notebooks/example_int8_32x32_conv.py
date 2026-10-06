@@ -39,6 +39,11 @@ def parse_args() -> argparse.Namespace:
         default=8,
         help="integer activation/weight bit width (16-bit mode is available for 8x8)",
     )
+    parser.add_argument(
+        "--no-compile",
+        action="store_true",
+        help="reuse the Verilator binary already compiled for the selected RTL profile",
+    )
     return parser.parse_args()
 
 
@@ -69,11 +74,18 @@ def main() -> None:
         f"| seed={args.seed}"
     )
 
-    subprocess.run(
-        ["sh", "./compile_sauria.sh", version],
-        cwd=VERILATOR_DIR,
-        check=True,
-    )
+    verilator_binary = VERILATOR_DIR / "Test-Sim"
+    if args.no_compile:
+        if not verilator_binary.is_file():
+            raise FileNotFoundError(
+                f"Cannot reuse missing Verilator binary: {verilator_binary}"
+            )
+    else:
+        subprocess.run(
+            ["sh", "./compile_sauria.sh", version],
+            cwd=VERILATOR_DIR,
+            check=True,
+        )
 
     channels_in = channels_out = 3
     kernel_h = kernel_w = 3
