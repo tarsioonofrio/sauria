@@ -15,9 +15,14 @@ module ram_inferred (
     output logic [383:0] o_outdata
 );
     logic [383:0] mem [0:511];
+    integer model_debug_events = 0;
 
     always @(posedge i_clk) begin
         if (!i_cen) begin
+            if (model_debug_events < 8) begin
+                $display("SRAM_MODEL module=ram_inferred wr=%b addr=%09b mask=%h", !i_rdwen, i_addr, i_wmask);
+                model_debug_events = model_debug_events + 1;
+            end
             if (!i_rdwen) begin
                 for (integer bit_idx = 0; bit_idx < 384; bit_idx += 8) begin
                     if (i_wmask[bit_idx])
@@ -43,9 +48,14 @@ module ram_inferred_0 (
     output logic [383:0] o_outdata
 );
     logic [383:0] mem [0:255];
+    integer model_debug_events = 0;
 
     always @(posedge i_clk) begin
         if (!i_cen) begin
+            if (model_debug_events < 8) begin
+                $display("SRAM_MODEL module=ram_inferred_0 wr=%b addr=%08b mask=%h", !i_rdwen, i_addr, i_wmask);
+                model_debug_events = model_debug_events + 1;
+            end
             if (!i_rdwen) begin
                 for (integer bit_idx = 0; bit_idx < 384; bit_idx += 8) begin
                     if (i_wmask[bit_idx])
