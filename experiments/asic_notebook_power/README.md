@@ -55,13 +55,17 @@ master and its timing contract are outside this experimental wrapper, so that
 path cannot be interpreted as a measured SoC interface result.
 
 For an accelerator-internal timing diagnostic, the `int16_2x2` constraints
-accept `SAURIA_TIMING_SCOPE=accelerator_internal`. That view excludes only
-`i_ctrl_aw_valid` → `o_ctrl_aw_ready`, because software/configuration writes
-finish before the layer starts. The default `wrapper` scope remains unchanged
-and is the only view that reports this path under the generic half-period
-external delays. The internal view is useful for examining the accelerator's
-remaining paths; its WNS must be labeled as an internal diagnostic and must
-not be reported as timing closure of the full wrapper or AXI-Lite interface.
+accept `SAURIA_TIMING_SCOPE=accelerator_internal`. That view excludes the
+combinational AXI-Lite AW/W valid-to-ready paths, because
+software/configuration writes finish before the layer starts. This includes
+cross-channel paths: the first diagnostic removed AWVALID → AWREADY, but then
+Genus reported AWVALID → WREADY at −39 ps. That confirms the whole external
+AW/W handshake boundary needs to be excluded for this internal diagnostic.
+The default `wrapper` scope remains unchanged and continues to time those
+paths under the generic half-period external delays. The internal view is
+useful for examining the accelerator's remaining paths; its WNS must be
+labeled as an internal diagnostic and must not be reported as timing closure
+of the full wrapper or AXI-Lite interface.
 
 For example, a 100 MHz diagnostic synthesis can be run with:
 
@@ -74,9 +78,9 @@ LOGICAL_RESULTS_ROOT="$PWD/experiments/asic_notebook_power/int16_2x2/logical/res
 
 Use a new immutable run ID and keep the original wrapper-scope reports. Check
 the Genus log for the selected scope, then inspect the timing report to verify
-the excluded path and identify the new critical path. No RTL behavior changes;
-the exception changes only which path contributes to this diagnostic timing
-summary.
+the AW/W valid-to-ready paths are absent and identify the new critical path.
+No RTL behavior changes; the exception changes only which paths contribute
+to this diagnostic timing summary.
 
 `DRAM_BANDWIDTH` is one shared cap for the external memory model. A single DMA
 command is serviced at a time, so IFMAP, weights, partial sums, and outputs do

@@ -29,7 +29,7 @@ set_output_delay -clock clk [expr {$period_clock/2}] [all_outputs]
 
 # The default view times the complete wrapper. For an accelerator-internal
 # diagnostic, the AXI-Lite host configures registers before the layer starts;
-# exclude only its combinational AWVALID-to-AWREADY handshake from that view.
+# exclude the combinational AW/W valid-to-ready handshake paths from that view.
 # This does not establish timing closure for the external AXI-Lite interface.
 set timing_scope "wrapper"
 if {[info exists ::env(SAURIA_TIMING_SCOPE)]} {
@@ -41,9 +41,9 @@ switch -- $timing_scope {
     }
     accelerator_internal {
         set_false_path \
-            -from [get_ports {i_ctrl_aw_valid}] \
-            -to   [get_ports {o_ctrl_aw_ready}]
-        puts "SAURIA timing scope: accelerator internal; excluded i_ctrl_aw_valid -> o_ctrl_aw_ready"
+            -from [get_ports {i_ctrl_aw_valid i_ctrl_w_valid}] \
+            -to   [get_ports {o_ctrl_aw_ready o_ctrl_w_ready}]
+        puts "SAURIA timing scope: accelerator internal; excluded AXI-Lite AW/W valid-to-ready paths"
     }
     default {
         error "Unsupported SAURIA_TIMING_SCOPE '$timing_scope' (use wrapper or accelerator_internal)"
