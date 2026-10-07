@@ -144,12 +144,16 @@ SRAM-to-DRAM direction further; logs report the resulting service cycles and
 bytes. This is a functional model of the excluded DMA/data movement contract,
 not the omitted uDMA's physical area or exact internal arbitration.
 
-The local SRAMs are synthesis black boxes because this flow does not have
-characterized compatible SRAM macros. Genus area therefore reports the mapped
-standard cells and Joules reports zero for the black-box memory category; that
-zero is excluded memory power, not a measurement of SRAM consumption. Do not
-present it as total accelerator power. Capacity per bank is written to each
-vector manifest; report logic area and memory capacity separately.
+The local SRAM instances and their interfaces are inside the elaborated
+synthesis hierarchy. Since this flow has no characterized compatible SRAM
+macros, Genus keeps the storage modules as black boxes (logic abstracts) rather
+than mapping the memory arrays to standard cells or SRAM macros. The surrounding
+SAURIA logic remains synthesized, but the SRAM storage area is absent from the
+reported standard-cell area. Joules likewise reports zero for the black-box
+memory category; that zero is excluded memory power, not a measurement of SRAM
+consumption. Do not present the reported area or power as including the SRAMs.
+Capacity per bank is written to each vector manifest; report logic area and
+memory capacity separately.
 
 The integrated boundary and testbench still need an RTL full-layer golden pass
 for each selected workload, followed by gate-level SDF golden passes, before a

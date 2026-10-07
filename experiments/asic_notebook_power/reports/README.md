@@ -44,7 +44,10 @@ synthesis CSV contains the later Genus area and three-corner timing results;
 its diagnostic `accelerator_internal` scope excludes AXI-Lite AW/W valid-to-
 ready paths and is not full-wrapper timing closure. Its 3x3, 5x5, and 6x6 slow
 corner margins are only 1–2 ps. Both reports exclude SRAM macro area/power
-because local SRAMs are black boxes without characterized macro models. Each
+because local SRAM instances remain in the elaborated synthesis hierarchy as
+black boxes (logic abstracts), without their storage mapped to standard cells
+or characterized SRAM macros. The surrounding SAURIA logic is synthesized,
+but memory storage area and power are not included in the reported values. Each
 JSON input is the authoritative data record for its CSV; consult the per-run
 artifacts for detailed tool output. The synthesis CSV also distinguishes the
 per-read local SRAM A (IFMAP) and B (weights) word lanes from active feeder
