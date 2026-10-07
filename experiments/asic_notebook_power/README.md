@@ -197,10 +197,16 @@ negative timing slack and SRAM power exclusion described above.
 ## Result reports
 
 Durable summary reports are stored in [`reports/`](reports/). The current
-INT16 PPA and estimated-energy table is
+INT16 PPA and estimated-energy table from the 2026-10-06 campaign is
 [`int16_ppa_energy_20261006.csv`](reports/int16_ppa_energy_20261006.csv),
 with its source data and run metadata in
 [`int16_ppa_energy_20261006.json`](reports/int16_ppa_energy_20261006.json).
+The separate synthesis-only report for the 3x3–6x6 internal-scope Genus runs
+is [`int16_synthesis_internal_500mhz_20261007.csv`](reports/int16_synthesis_internal_500mhz_20261007.csv),
+with source data in
+[`int16_synthesis_internal_500mhz_20261007.json`](reports/int16_synthesis_internal_500mhz_20261007.json).
+The two reports retain their own run IDs because their source commits and
+timing scopes differ. `make report` regenerates both CSVs.
 Per-run simulation, synthesis, and power artifacts remain under each profile's
 `sim/run_artifacts/`, `logical/results/`, `power/results/`, and
 `run_metadata/` directories, as described above. See
