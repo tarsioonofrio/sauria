@@ -102,3 +102,16 @@ per-layer energy table to CSV. The input JSON records each run ID and source
 commit. Energy is calculated from the Joules total and layer cycles at the
 2 ns target period; it is an estimate under that clock and inherits both the
 negative timing slack and SRAM power exclusion described above.
+
+## Result reports
+
+Durable summary reports are stored in [`reports/`](reports/). The current
+INT16 PPA and estimated-energy table is
+[`int16_ppa_energy_20261006.csv`](reports/int16_ppa_energy_20261006.csv),
+with its source data and run metadata in
+[`int16_ppa_energy_20261006.json`](reports/int16_ppa_energy_20261006.json).
+Per-run simulation, synthesis, and power artifacts remain under each profile's
+`sim/run_artifacts/`, `logical/results/`, `power/results/`, and
+`run_metadata/` directories, as described above. See
+[`reports/README.md`](reports/README.md) for the report contents and how to
+regenerate the CSV.
