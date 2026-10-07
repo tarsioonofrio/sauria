@@ -5,6 +5,13 @@
   "genus_version": "21.12-s068_1",
   "target_frequency_mhz": 500,
   "clock_period_ns": 2.0,
+  "operand_bits": 16,
+  "external_interface": {
+    "axi_data_width_bits": 128,
+    "shared_bandwidth_bits_per_cycle": 128,
+    "bandwidth_is_shared_across_ifmap_weights_and_outputs": true,
+    "note": "External bus-beat width and shared bandwidth are separate from local SRAM read widths."
+  },
   "timing_scope": "accelerator_internal",
   "timing_scope_note": "Diagnostic scope excludes AXI-Lite AW/W valid-to-ready paths; it does not characterize full-wrapper timing.",
   "sram_macro_area_included": false,
@@ -17,6 +24,8 @@
   "results": [
     {
       "array": "3x3",
+      "x_physical": 3,
+      "y_physical": 3,
       "x_used": 3,
       "y_used": 3,
       "standard_cell_area_um2": 35793.702,
@@ -32,6 +41,8 @@
     },
     {
       "array": "4x4",
+      "x_physical": 4,
+      "y_physical": 4,
       "x_used": 3,
       "y_used": 3,
       "standard_cell_area_um2": 40383.504,
@@ -47,6 +58,8 @@
     },
     {
       "array": "5x5",
+      "x_physical": 5,
+      "y_physical": 5,
       "x_used": 3,
       "y_used": 5,
       "standard_cell_area_um2": 56540.736,
@@ -62,6 +75,8 @@
     },
     {
       "array": "6x6",
+      "x_physical": 6,
+      "y_physical": 6,
       "x_used": 3,
       "y_used": 6,
       "standard_cell_area_um2": 64613.178,

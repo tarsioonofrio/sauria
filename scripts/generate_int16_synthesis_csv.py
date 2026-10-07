@@ -15,14 +15,26 @@ DEFAULT_OUTPUT = ROOT / "experiments/asic_notebook_power/reports/int16_synthesis
 
 FIELDS = [
     "array",
+    "x_physical",
+    "y_physical",
     "x_used",
     "y_used",
     "active_pes",
+    "ifmap_words_per_local_sram_read",
+    "weight_words_per_local_sram_read",
+    "local_operand_words_if_srama_sramb_read_together",
+    "active_ifmap_word_lanes",
+    "active_weight_word_lanes",
+    "active_operand_word_lanes",
     "standard_cell_area_um2",
     "cell_count",
     "target_frequency_mhz",
     "clock_period_ns",
     "timing_scope",
+    "external_axi_data_width_bits",
+    "external_words_per_axi_beat",
+    "external_shared_bandwidth_bits_per_cycle",
+    "external_shared_word_budget_per_cycle",
     "slow_corner_wns_ps",
     "typical_corner_wns_ps",
     "fast_corner_wns_ps",
@@ -44,19 +56,37 @@ def main() -> None:
     args = parser.parse_args()
 
     manifest = json.loads(args.input.read_text(encoding="utf-8"))
+    operand_bits = int(manifest["operand_bits"])
+    external = manifest["external_interface"]
     rows = []
     for result in manifest["results"]:
+        x_physical = int(result["x_physical"])
+        y_physical = int(result["y_physical"])
+        x_used = int(result["x_used"])
+        y_used = int(result["y_used"])
         rows.append(
             {
                 "array": result["array"],
-                "x_used": result["x_used"],
-                "y_used": result["y_used"],
-                "active_pes": int(result["x_used"]) * int(result["y_used"]),
+                "x_physical": x_physical,
+                "y_physical": y_physical,
+                "x_used": x_used,
+                "y_used": y_used,
+                "active_pes": x_used * y_used,
+                "ifmap_words_per_local_sram_read": y_physical,
+                "weight_words_per_local_sram_read": x_physical,
+                "local_operand_words_if_srama_sramb_read_together": x_physical + y_physical,
+                "active_ifmap_word_lanes": y_used,
+                "active_weight_word_lanes": x_used,
+                "active_operand_word_lanes": x_used + y_used,
                 "standard_cell_area_um2": f'{float(result["standard_cell_area_um2"]):.3f}',
                 "cell_count": result["cell_count"],
                 "target_frequency_mhz": manifest["target_frequency_mhz"],
                 "clock_period_ns": f'{float(manifest["clock_period_ns"]):g}',
                 "timing_scope": manifest["timing_scope"],
+                "external_axi_data_width_bits": external["axi_data_width_bits"],
+                "external_words_per_axi_beat": int(external["axi_data_width_bits"]) // operand_bits,
+                "external_shared_bandwidth_bits_per_cycle": external["shared_bandwidth_bits_per_cycle"],
+                "external_shared_word_budget_per_cycle": int(external["shared_bandwidth_bits_per_cycle"]) // operand_bits,
                 "slow_corner_wns_ps": result["slow_corner_wns_ps"],
                 "typical_corner_wns_ps": result["typical_corner_wns_ps"],
                 "fast_corner_wns_ps": result["fast_corner_wns_ps"],

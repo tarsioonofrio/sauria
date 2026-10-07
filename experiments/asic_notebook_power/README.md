@@ -206,7 +206,12 @@ is [`int16_synthesis_internal_500mhz_20261007.csv`](reports/int16_synthesis_inte
 with source data in
 [`int16_synthesis_internal_500mhz_20261007.json`](reports/int16_synthesis_internal_500mhz_20261007.json).
 The two reports retain their own run IDs because their source commits and
-timing scopes differ. `make report` regenerates both CSVs.
+timing scopes differ. The synthesis report shows local SRAM A/B read widths,
+active feeder lanes, and the external shared bandwidth separately. For these
+INT16 profiles, each local read returns up to Y IFMAP words from SRAMA and X
+weight words from SRAMB; the external AXI configuration is 128 bits per beat
+with a shared 128-bit/cycle budget (8 INT16 words/cycle total). `make report`
+regenerates both CSVs.
 Per-run simulation, synthesis, and power artifacts remain under each profile's
 `sim/run_artifacts/`, `logical/results/`, `power/results/`, and
 `run_metadata/` directories, as described above. See

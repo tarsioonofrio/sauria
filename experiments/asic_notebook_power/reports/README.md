@@ -19,7 +19,7 @@ as `int16_4x4/logical/results/<run_id>/`, `int16_4x4/sim/run_artifacts/`,
   cell count, and slack at all three corners.
 - `int16_synthesis_internal_500mhz_20261007.json` is the source record for
   that synthesis-only report, including each run ID, critical path, and report
-  directory.
+  directory, physical and active X/Y dimensions, and memory-port widths.
 
 Regenerate the CSV from the repository root with:
 
@@ -46,4 +46,10 @@ ready paths and is not full-wrapper timing closure. Its 3x3, 5x5, and 6x6 slow
 corner margins are only 1–2 ps. Both reports exclude SRAM macro area/power
 because local SRAMs are black boxes without characterized macro models. Each
 JSON input is the authoritative data record for its CSV; consult the per-run
-artifacts for detailed tool output.
+artifacts for detailed tool output. The synthesis CSV also distinguishes the
+per-read local SRAM A (IFMAP) and B (weights) word lanes from active feeder
+lanes and from the external 128-bit AXI beat. The local word counts are port
+widths if both banks return data on the same cycle, not measured sustained
+traffic. The configured external budget is 128 bits/cycle, shared across
+IFMAP, weights, and outputs; at 16 bits/word, that is an aggregate budget of
+8 words/cycle, not a separate budget per tensor.
