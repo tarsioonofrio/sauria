@@ -82,6 +82,25 @@ the AW/W valid-to-ready paths are absent and identify the new critical path.
 No RTL behavior changes; the exception changes only which paths contribute
 to this diagnostic timing summary.
 
+For the 100 MHz `int16_2x2` diagnostic on 2026-10-07, the first run
+`int16-2x2-100mhz-internal-aw-excluded-20261007-b129314` excluded only
+AWVALID → AWREADY. Genus completed with exit code 0, but the worst path was
+still AWVALID → WREADY at −39 ps, so that run is evidence that the single-path
+exception was insufficient. The corrected run
+`int16-2x2-100mhz-internal-handshake-excluded-20261007-dbb8c7e` excludes the
+AW/W valid-to-ready combinations. Genus completed with exit code 0; its
+worst reported setup check at the 0.81 V, 125 °C corner had +4664 ps slack and
+ran from `i_ctrl_aw_valid` to an internal clock-gating enable in
+`df_controller_i`. The other reported corners had +4723 ps (0.90 V, 25 °C)
+and +4783 ps (0.99 V, −40 °C). The timing reports are under
+`int16_2x2/logical/results/<run_id>/reports/`, and the command logs and exit
+codes are under `int16_2x2/run_metadata/<run_id>/`.
+
+The corrected result is an accelerator timing diagnostic under the declared
+10 ns clock and generic half-period I/O assumptions. It still times the
+configuration input path to internal logic, including the clock-gating check;
+it does not characterize or close the external AXI-Lite master interface.
+
 `DRAM_BANDWIDTH` is one shared cap for the external memory model. A single DMA
 command is serviced at a time, so IFMAP, weights, partial sums, and outputs do
 not receive separate external channels. `DRAM_LATENCY` is charged for each
