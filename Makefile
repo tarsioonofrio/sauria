@@ -11,7 +11,7 @@ CASE ?=
 REPORT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261006.csv
 
 PROFILE_ROOT = experiments/asic_notebook_power/$(PROFILE)
-LOGICAL_RESULTS_ROOT = $(PROFILE_ROOT)/logical/results/$(RUN_ID)
+LOGICAL_RESULTS_ROOT = $(abspath $(PROFILE_ROOT)/logical/results/$(RUN_ID))
 
 ifeq ($(PROFILE),int16_2x2)
 DEFAULT_CASE = conv-x1-y2
