@@ -114,6 +114,28 @@ full-wrapper timing claim. Reports and logs are under the same
 `logical/results/<run_id>/reports/` and `run_metadata/<run_id>/` locations
 listed above.
 
+The 3x3, 4x4, 5x5, and 6x6 INT16 profiles were synthesized with the same
+500 MHz target, Genus 21.12, and `accelerator_internal` constraint scope on
+2026-10-07, using source commit `7a1eaacc`. The table reports the worst setup
+slack in each corner and mapped standard-cell area. All four Genus jobs exited
+with code 0. `MET` at the slow corner is only a synthesis result under this
+diagnostic scope; the 3x3, 5x5, and 6x6 margins are only 1–2 ps and should be
+treated as marginal, not robust timing closure. The AW/W handshake paths are
+excluded, so none of these results closes the full AXI-Lite wrapper.
+
+| Array | Run ID | Slow corner slack (0.81 V, 125 °C) | Typical slack (0.90 V, 25 °C) | Fast corner slack (0.99 V, −40 °C) | Critical slow-corner path | Standard-cell area (µm²) | Cells | Genus exit |
+|---|---|---:|---:|---:|---|---:|---:|---:|
+| 3x3 | `int16-3x3-500mhz-internal-handshake-excluded-20261007-7a1eaac` | +1 ps | +381 ps | +500 ps | `psm_shift_fsm_i/main_state_q_reg[1]` → `psm_idxcnt_i/mask_q_reg[2]` | 35,793.702 | 32,019 | 0 |
+| 4x4 | `int16-4x4-500mhz-internal-handshake-excluded-20261007-7a1eaac` | +64 ps | +498 ps | +787 ps | `sauria_dma_controller_I/sub_state_reg[0]` → `wdata_reg[30]` | 40,383.504 | 32,566 | 0 |
+| 5x5 | `int16-5x5-500mhz-internal-handshake-excluded-20261007-7a1eaac` | +2 ps | +378 ps | +501 ps | `psm_shift_fsm_i/main_state_q_reg[2]` → `psm_idxcnt_i/mask_q_reg[1]` | 56,540.736 | 52,556 | 0 |
+| 6x6 | `int16-6x6-500mhz-internal-handshake-excluded-20261007-7a1eaac` | +1 ps | +360 ps | +487 ps | `psm_shift_fsm_i/main_state_q_reg[3]` → `psm_idxcnt_i/mask_q_reg[2]` | 64,613.178 | 56,793 | 0 |
+
+For each row, detailed timing, area, netlist, and SDF files are under
+`int16_NxN/logical/results/<run_id>/`; the command log, host, commit, and exit
+code are under `int16_NxN/run_metadata/<run_id>/`. The local SRAMs remain
+black boxes, so these area values are standard cells only and exclude SRAM
+macro area.
+
 `DRAM_BANDWIDTH` is one shared cap for the external memory model. A single DMA
 command is serviced at a time, so IFMAP, weights, partial sums, and outputs do
 not receive separate external channels. `DRAM_LATENCY` is charged for each
