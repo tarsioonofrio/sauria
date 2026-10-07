@@ -54,13 +54,14 @@ configuration interface. This can make the combinational path from
 master and its timing contract are outside this experimental wrapper, so that
 path cannot be interpreted as a measured SoC interface result.
 
-For an accelerator-internal timing diagnostic, the `int16_2x2` constraints
-accept `SAURIA_TIMING_SCOPE=accelerator_internal`. That view excludes the
-combinational AXI-Lite AW/W valid-to-ready paths, because
-software/configuration writes finish before the layer starts. This includes
-cross-channel paths: the first diagnostic removed AWVALID → AWREADY, but then
-Genus reported AWVALID → WREADY at −39 ps. That confirms the whole external
-AW/W handshake boundary needs to be excluded for this internal diagnostic.
+For an accelerator-internal timing diagnostic, the active `int16_2x2` through
+`int16_6x6` constraints accept `SAURIA_TIMING_SCOPE=accelerator_internal`.
+That view excludes the combinational AXI-Lite AW/W valid-to-ready paths,
+because software/configuration writes finish before the layer starts. This
+includes cross-channel paths: the first diagnostic removed AWVALID → AWREADY,
+but then Genus reported AWVALID → WREADY at −39 ps. That confirms the whole
+external AW/W handshake boundary needs to be excluded for this internal
+diagnostic.
 The default `wrapper` scope remains unchanged and continues to time those
 paths under the generic half-period external delays. The internal view is
 useful for examining the accelerator's remaining paths; its WNS must be
