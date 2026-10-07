@@ -45,6 +45,39 @@ adapter accepts a paired write. It also holds each B response until the
 controller consumes it, so a delayed BREADY does not block that write from
 reaching the register adapter or lose the start response.
 
+## Timing scope for the AXI-Lite configuration handshake
+
+The default synthesis constraints measure the complete wrapper. They apply
+half-period input and output delays to the ports, including the AXI-Lite host
+configuration interface. This can make the combinational path from
+`i_ctrl_aw_valid` to `o_ctrl_aw_ready` the reported critical path. The external
+master and its timing contract are outside this experimental wrapper, so that
+path cannot be interpreted as a measured SoC interface result.
+
+For an accelerator-internal timing diagnostic, the `int16_2x2` constraints
+accept `SAURIA_TIMING_SCOPE=accelerator_internal`. That view excludes only
+`i_ctrl_aw_valid` → `o_ctrl_aw_ready`, because software/configuration writes
+finish before the layer starts. The default `wrapper` scope remains unchanged
+and is the only view that reports this path under the generic half-period
+external delays. The internal view is useful for examining the accelerator's
+remaining paths; its WNS must be labeled as an internal diagnostic and must
+not be reported as timing closure of the full wrapper or AXI-Lite interface.
+
+For example, a 100 MHz diagnostic synthesis can be run with:
+
+```bash
+SAURIA_CLOCK_PERIOD_NS=10.0 \
+SAURIA_TIMING_SCOPE=accelerator_internal \
+LOGICAL_RESULTS_ROOT="$PWD/experiments/asic_notebook_power/int16_2x2/logical/results/<run-id>" \
+./experiments/asic_notebook_power/int16_2x2/logical/run.sh
+```
+
+Use a new immutable run ID and keep the original wrapper-scope reports. Check
+the Genus log for the selected scope, then inspect the timing report to verify
+the excluded path and identify the new critical path. No RTL behavior changes;
+the exception changes only which path contributes to this diagnostic timing
+summary.
+
 `DRAM_BANDWIDTH` is one shared cap for the external memory model. A single DMA
 command is serviced at a time, so IFMAP, weights, partial sums, and outputs do
 not receive separate external channels. `DRAM_LATENCY` is charged for each

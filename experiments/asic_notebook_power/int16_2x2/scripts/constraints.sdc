@@ -26,3 +26,26 @@ set_driving_cell -lib_cell GINVD1BWP30P140 $data_inputs
 set_load [load_of [get_lib_pins GINVMCOD8BWP30P140/I]] [all_outputs]
 set_input_delay -clock clk [expr {$period_clock/2}] $data_inputs
 set_output_delay -clock clk [expr {$period_clock/2}] [all_outputs]
+
+# The default view times the complete wrapper. For an accelerator-internal
+# diagnostic, the AXI-Lite host configures registers before the layer starts;
+# exclude only its combinational AWVALID-to-AWREADY handshake from that view.
+# This does not establish timing closure for the external AXI-Lite interface.
+set timing_scope "wrapper"
+if {[info exists ::env(SAURIA_TIMING_SCOPE)]} {
+    set timing_scope $::env(SAURIA_TIMING_SCOPE)
+}
+switch -- $timing_scope {
+    wrapper {
+        puts "SAURIA timing scope: complete wrapper"
+    }
+    accelerator_internal {
+        set_false_path \
+            -from [get_ports {i_ctrl_aw_valid}] \
+            -to   [get_ports {o_ctrl_aw_ready}]
+        puts "SAURIA timing scope: accelerator internal; excluded i_ctrl_aw_valid -> o_ctrl_aw_ready"
+    }
+    default {
+        error "Unsupported SAURIA_TIMING_SCOPE '$timing_scope' (use wrapper or accelerator_internal)"
+    }
+}
