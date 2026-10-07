@@ -6,8 +6,14 @@ set sdc_version 1.5
 set_load_unit -femtofarads
 set_time_unit -nanoseconds
 
-# 500 MHz target clock.
-set period_clock 2.0
+# Override the target period for one-off timing points without changing the
+# configuration. The normal campaign remains at 500 MHz (2.0 ns).
+if {[info exists ::env(SAURIA_CLOCK_PERIOD_NS)]} {
+    set period_clock $::env(SAURIA_CLOCK_PERIOD_NS)
+} else {
+    set period_clock 2.0
+}
+puts "SAURIA clock constraint: period=${period_clock} ns"
 set clock_port [get_ports {i_clk}]
 set reset_port [get_ports {i_rstn}]
 create_clock -name {clk} -period $period_clock $clock_port
