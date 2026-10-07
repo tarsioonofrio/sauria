@@ -101,6 +101,18 @@ The corrected result is an accelerator timing diagnostic under the declared
 configuration input path to internal logic, including the clock-gating check;
 it does not characterize or close the external AXI-Lite master interface.
 
+The same corrected scope was synthesized at the 500 MHz target on 2026-10-07
+as `int16-2x2-500mhz-internal-handshake-excluded-20261007-a960605`, using
+source commit `a960605`. Genus 21.12 completed with exit code 0. The worst
+reported setup path was met with +64 ps at 0.81 V, 125 °C, from
+`sauria_dma_controller_I/sub_state_reg[0]` to `wdata_reg[30]`; the other
+reported corners had +501 ps (0.90 V, 25 °C) and +769 ps (0.99 V, −40 °C).
+The mapped design had 19,560 cells and 26,145.882 µm² standard-cell area.
+These are synthesis results for this diagnostic constraint scope, not a
+full-wrapper timing claim. Reports and logs are under the same
+`logical/results/<run_id>/reports/` and `run_metadata/<run_id>/` locations
+listed above.
+
 `DRAM_BANDWIDTH` is one shared cap for the external memory model. A single DMA
 command is serviced at a time, so IFMAP, weights, partial sums, and outputs do
 not receive separate external channels. `DRAM_LATENCY` is charged for each
