@@ -126,8 +126,8 @@ def fp16_fma_convolution(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndar
 
 
 def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int):
-    rng = np.random.default_rng(seed)
     if profile == "fp16_8x16":
+        rng = np.random.default_rng(seed)
         np.random.seed(seed)
         a, b, c = data_helper.generate_tensors(conv, hopts, insert_deadbeef=False)
         output = fp16_fma_convolution(a, b, c)
@@ -135,10 +135,33 @@ def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int):
 
     shapes = PROFILES[profile]["cases"][case]["shapes"]
     a_shape, b_shape, out_shape = shapes
-    a = rng.integers(-127, 127, size=a_shape, dtype=np.int16).astype(np.int8)
-    b = rng.integers(-127, 127, size=b_shape, dtype=np.int16).astype(np.int8)
+    if profile.startswith("int16_"):
+        # Match FastConv cmd_sim_normal: seeded N(0, 1) tensors, Q8 scaling,
+        # truncation toward zero, and signed wrap at the configured port width.
+        # "8 bits" here means fractional precision, not signed int8 saturation.
+        rng = np.random.RandomState(seed)
+        a = signed_wrap(
+            (rng.normal(0, 1, size=a_shape) * (2**8)).astype(np.int64),
+            hopts["IA_W"],
+        )
+        b = signed_wrap(
+            (rng.normal(0, 1, size=b_shape) * (2**8)).astype(np.int64),
+            hopts["IB_W"],
+        )
+    else:
+        rng = np.random.default_rng(seed)
+        a = rng.integers(-127, 127, size=a_shape, dtype=np.int16).astype(np.int8)
+        b = rng.integers(-127, 127, size=b_shape, dtype=np.int16).astype(np.int8)
     c = np.zeros(out_shape, dtype=np.int64)
-    if case.startswith("conv"):
+    if profile.startswith("int16_"):
+        # The FastConv normal simulation used for the reference workload has
+        # bias disabled; keep preload/initial partial sums at zero.
+        out = c.copy()
+        for kh in range(3):
+            for kw in range(3):
+                patch = a[:, kh:kh + out_shape[1], kw:kw + out_shape[2]].astype(np.int64)
+                out += np.einsum("oc,chw->ohw", b[:, :, kh, kw].astype(np.int64), patch, optimize=True)
+    elif case.startswith("conv"):
         c[:, :, :] = rng.integers(-127, 127, size=(out_shape[0], 1, 1), dtype=np.int16)
         out = c.copy()
         for kh in range(3):
@@ -148,7 +171,13 @@ def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int):
     else:
         out = np.matmul(b[:, :, 0, 0].astype(np.int64), a[:, 0, :].astype(np.int64))[:, None, :]
     out = signed_wrap(out, hopts["OC_W"])
-    return a, b, c, out, "direct integer convolution/GEMM with signed accumulator wrap"
+    golden_model = (
+        "direct convolution of seeded Gaussian Q8 operands, bias disabled, "
+        f"signed {hopts['OC_W']}-bit accumulator wrap"
+        if profile.startswith("int16_")
+        else "direct integer convolution/GEMM with signed accumulator wrap"
+    )
+    return a, b, c, out, golden_model
 
 
 def encoded(values: np.ndarray, bits: int, floating: bool, mantissa: int) -> np.ndarray:
@@ -309,6 +338,21 @@ def main() -> int:
             "start_policy": "one layer start; controller schedules all tiles",
         },
         "golden_model": golden_model,
+        "quantization": (
+            {
+                "distribution": "normal",
+                "mean": 0,
+                "standard_deviation": 1,
+                "fractional_bits": 8,
+                "conversion": "truncate toward zero after multiplying by 2^8",
+                "operand_width_bits": [hopts["IA_W"], hopts["IB_W"]],
+                "signed_overflow": "wrap modulo 2^operand_width",
+                "bias": "disabled; zero initial partial sums",
+                "saturation": False,
+            }
+            if args.profile.startswith("int16_")
+            else None
+        ),
         "counts": counts,
         "sha256": {name: sha256(outdir / name) for name in files},
     }

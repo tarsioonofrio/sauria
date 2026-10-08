@@ -19,10 +19,15 @@ The deterministic workloads are:
 | --- | --- | --- | --- | --- |
 | int16 | profile-specific active X/Y | 3x32x32 | 3x3x3x3 | 3x30x30 |
 
-The campaign generates seeded reproducible inputs, weights, and bias with the
-same layer shape and numeric format for each array. The vector manifests record
-the seeds and SHA-256 hashes. Expected outputs use the independent NumPy
-convolution and signed 16-bit wrap used by the experiment.
+The INT16 array sweep now follows the FastConv `cmd_sim_normal` tensor
+generation contract: seeded `N(0, 1)` IFMAP and weights, scaled by `2^8` and
+truncated toward zero to represent eight fractional bits. These are signed
+16-bit operands with wraparound, not saturated signed INT8 values. Bias is
+disabled and initial partial sums are zero. All five array profiles use the
+same seed and layer tensors; only their packed memory layout differs. The
+vector manifests record the seed, quantization contract, and SHA-256 hashes.
+Expected outputs use an independent direct NumPy convolution and signed 16-bit
+accumulator wrap.
 
 ## Power boundary and limitations
 
