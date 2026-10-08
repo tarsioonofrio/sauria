@@ -2,6 +2,8 @@
 set -Eeuo pipefail
 
 PROFILE=${1:?usage: run_campaign.sh int16_2x2|int16_3x3|int16_4x4|int16_5x5|int16_6x6}
+SAURIA_TIMING_SCOPE=${SAURIA_TIMING_SCOPE:-accelerator_internal}
+export SAURIA_TIMING_SCOPE
 case "$PROFILE" in
     int16_2x2) CASES=(conv-x1-y2) ;;
     int16_3x3) CASES=(conv-x3-y3) ;;
@@ -44,6 +46,7 @@ mkdir -p "$REPORT_ROOT"
     echo "logical_results=$LOGICAL_RESULTS_ROOT"
     echo "pvt=TSMC28 TT 0.90V 25C for activity-based Joules report"
     echo "clock_target_mhz=500"
+    echo "timing_scope=$SAURIA_TIMING_SCOPE"
     echo "memory_power=excluded (uncharacterized SRAM black boxes)"
     echo "workloads=$(IFS=,; echo "${CASES[*]}")"
 } | tee "$REPORT_ROOT/campaign.txt"

@@ -50,43 +50,32 @@ adapter accepts a paired write. It also holds each B response until the
 controller consumes it, so a delayed BREADY does not block that write from
 reaching the register adapter or lose the start response.
 
-## Timing scope for the AXI-Lite configuration handshake
+## Timing scope
 
-The default synthesis constraints measure the complete wrapper. They apply
-half-period input and output delays to the ports, including the AXI-Lite host
-configuration interface. This can make the combinational path from
-`i_ctrl_aw_valid` to `o_ctrl_aw_ready` the reported critical path. The external
-master and its timing contract are outside this experimental wrapper, so that
-path cannot be interpreted as a measured SoC interface result.
+The experiment measures a convolution layer after its AXI-Lite configuration
+registers have been programmed. Therefore, `accelerator_internal` is the
+default timing scope for the `int16_2x2` through `int16_6x6` profiles. It
+excludes the combinational AW/W valid-to-ready handshake paths, including
+cross-channel combinations such as AWVALID → WREADY. This scope measures the
+accelerator's internal paths; it does not establish timing closure for the
+external AXI-Lite master interface.
 
-For an accelerator-internal timing diagnostic, the active `int16_2x2` through
-`int16_6x6` constraints accept `SAURIA_TIMING_SCOPE=accelerator_internal`.
-That view excludes the combinational AXI-Lite AW/W valid-to-ready paths,
-because software/configuration writes finish before the layer starts. This
-includes cross-channel paths: the first diagnostic removed AWVALID → AWREADY,
-but then Genus reported AWVALID → WREADY at −39 ps. That confirms the whole
-external AW/W handshake boundary needs to be excluded for this internal
-diagnostic.
-The default `wrapper` scope remains unchanged and continues to time those
-paths under the generic half-period external delays. The internal view is
-useful for examining the accelerator's remaining paths; its WNS must be
-labeled as an internal diagnostic and must not be reported as timing closure
-of the full wrapper or AXI-Lite interface.
+Select `SAURIA_TIMING_SCOPE=wrapper` explicitly to include those external
+handshake paths in a full-wrapper timing analysis. The Genus console prints
+the selected scope, and each campaign records it in `campaign.txt`.
 
-For example, a 100 MHz diagnostic synthesis can be run with:
+For example, a 100 MHz internal-scope synthesis can be run with:
 
 ```bash
 SAURIA_CLOCK_PERIOD_NS=10.0 \
-SAURIA_TIMING_SCOPE=accelerator_internal \
 LOGICAL_RESULTS_ROOT="$PWD/experiments/asic_notebook_power/int16_2x2/logical/results/<run-id>" \
 ./experiments/asic_notebook_power/int16_2x2/logical/run.sh
 ```
 
-Use a new immutable run ID and keep the original wrapper-scope reports. Check
-the Genus log for the selected scope, then inspect the timing report to verify
-the AW/W valid-to-ready paths are absent and identify the new critical path.
-No RTL behavior changes; the exception changes only which paths contribute
-to this diagnostic timing summary.
+To run the full-wrapper scope, set `SAURIA_TIMING_SCOPE=wrapper`. Use a new
+immutable run ID for each scope, then verify the selected scope in the Genus
+log and inspect which paths contribute to WNS. This setting changes timing
+exceptions only; it does not change RTL behavior.
 
 For the 100 MHz `int16_2x2` diagnostic on 2026-10-07, the first run
 `int16-2x2-100mhz-internal-aw-excluded-20261007-b129314` excluded only

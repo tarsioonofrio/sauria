@@ -27,17 +27,16 @@ set_load [load_of [get_lib_pins GINVMCOD8BWP30P140/I]] [all_outputs]
 set_input_delay -clock clk [expr {$period_clock/2}] $data_inputs
 set_output_delay -clock clk [expr {$period_clock/2}] [all_outputs]
 
-# The default view times the complete wrapper. For an accelerator-internal
-# diagnostic, the AXI-Lite host configures registers before the layer starts;
-# exclude the combinational AW/W valid-to-ready handshake paths from that view.
-# This does not establish timing closure for the external AXI-Lite interface.
-set timing_scope "wrapper"
+# The experiment starts after AXI-Lite configuration is complete, so the
+# default view measures accelerator-internal paths. Select "wrapper" explicitly
+# to include the external AW/W valid-to-ready handshake paths as well.
+set timing_scope "accelerator_internal"
 if {[info exists ::env(SAURIA_TIMING_SCOPE)]} {
     set timing_scope $::env(SAURIA_TIMING_SCOPE)
 }
 switch -- $timing_scope {
     wrapper {
-        puts "SAURIA timing scope: complete wrapper"
+        puts "SAURIA timing scope: complete wrapper, including AXI-Lite handshake"
     }
     accelerator_internal {
         set_false_path \
