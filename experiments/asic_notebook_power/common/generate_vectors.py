@@ -207,6 +207,10 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def tensor_sha256(values: np.ndarray) -> str:
+    return hashlib.sha256(np.ascontiguousarray(values).tobytes()).hexdigest()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=PROFILES, required=True)
@@ -338,6 +342,12 @@ def main() -> int:
             "start_policy": "one layer start; controller schedules all tiles",
         },
         "golden_model": golden_model,
+        "tensor_sha256": {
+            "ifmap": tensor_sha256(a),
+            "weights": tensor_sha256(b),
+            "initial_partial_sums": tensor_sha256(c),
+            "golden": tensor_sha256(output),
+        },
         "quantization": (
             {
                 "distribution": "normal",
