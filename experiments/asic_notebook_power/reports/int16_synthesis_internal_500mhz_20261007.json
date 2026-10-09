@@ -6,6 +6,14 @@
   "target_frequency_mhz": 500,
   "clock_period_ns": 2.0,
   "operand_bits": 16,
+  "workload": {
+    "ifmap": [3, 32, 32],
+    "weights": [3, 3, 3, 3],
+    "ofmap": [3, 30, 30],
+    "cin": 3,
+    "cout": 3,
+    "note": "Reference workload for the INT16 notebook cases; synthesis itself is stimulus-independent."
+  },
   "external_interface": {
     "axi_data_width_bits": 128,
     "shared_bandwidth_bits_per_cycle": 128,

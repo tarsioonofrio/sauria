@@ -10,8 +10,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "experiments/asic_notebook_power/reports/int16_ppa_energy_20261006.json"
-DEFAULT_OUTPUT = ROOT / "experiments/asic_notebook_power/reports/int16_ppa_energy_20261006.csv"
+SOURCE = ROOT / "experiments/asic_notebook_power/reports/int16_ppa_energy_20261009.json"
+DEFAULT_OUTPUT = ROOT / "experiments/asic_notebook_power/reports/int16_ppa_energy_20261009.csv"
 
 FIELDS = [
     "cin",

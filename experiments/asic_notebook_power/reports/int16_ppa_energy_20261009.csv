@@ -1,0 +1,6 @@
+cin,cout,array,x_used,y_used,active_pes,standard_cell_area_um2,layer_cycles,clock_period_ns,estimated_layer_time_us,wns_ps,timing_met_500mhz,power_mw,estimated_energy_uj,sram_power_included,output_checksum,run_id,source_commit
+3,12,2x2,1,2,2,26145.882,293764,2,587.528,64.0,true,4.29963,2.526153,false,015f2e08,fastconv-q12-internal-20261009-int16_2x2-6bdb5b0,6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c
+3,12,3x3,3,3,9,35793.702,44044,2,88.088,1.0,true,10.75670,0.947536,false,015f2e08,fastconv-q12-internal-20261009-int16_3x3-6bdb5b0,6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c
+3,12,4x4,3,3,9,40383.504,67156,2,134.312,64.0,true,9.29913,1.248985,false,015f2e08,fastconv-q12-internal-20261009-int16_4x4-6bdb5b0,6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c
+3,12,5x5,3,5,15,56540.736,41980,2,83.960,2.0,true,13.41990,1.126735,false,015f2e08,fastconv-q12-internal-20261009-int16_5x5-6bdb5b0,6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c
+3,12,6x6,3,6,18,64613.178,38260,2,76.520,1.0,true,15.06400,1.152697,false,015f2e08,fastconv-q12-internal-20261009-int16_6x6-6bdb5b0,6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c

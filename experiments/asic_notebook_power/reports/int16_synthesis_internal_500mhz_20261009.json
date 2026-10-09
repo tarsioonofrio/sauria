@@ -1,6 +1,6 @@
 {
-  "campaign_date": "2026-10-08",
-  "source_commit": "3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca",
+  "campaign_date": "2026-10-09",
+  "source_commit": "6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c",
   "technology": "TSMC28",
   "genus_version": "21.12-s068_1",
   "target_frequency_mhz": 500,
@@ -8,10 +8,12 @@
   "operand_bits": 16,
   "workload": {
     "ifmap": [3, 32, 32],
-    "weights": [3, 3, 3, 3],
-    "ofmap": [3, 30, 30],
+    "weights": [12, 3, 3, 3],
+    "ofmap": [12, 30, 30],
     "cin": 3,
-    "cout": 3
+    "cout": 12,
+    "seed": 20261004,
+    "checksum": "015f2e08"
   },
   "external_interface": {
     "axi_data_width_bits": 128,
@@ -40,11 +42,11 @@
       "slow_corner_wns_ps": 64,
       "typical_corner_wns_ps": 501,
       "fast_corner_wns_ps": 769,
-      "slow_corner_critical_startpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/sub_state_reg[0]",
-      "slow_corner_critical_endpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/wdata_reg[30]",
+      "slow_corner_critical_startpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/sub_state_reg[0]/CP",
+      "slow_corner_critical_endpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/wdata_reg[30]/D",
       "genus_exit_code": 0,
-      "run_id": "fastconv-q8-internal-20261008-int16-2x2-3cdb4b2",
-      "report_path": "experiments/asic_notebook_power/int16_2x2/logical/results/fastconv-q8-internal-20261008-int16-2x2-3cdb4b2/reports/"
+      "run_id": "fastconv-q12-internal-20261009-int16_2x2-6bdb5b0",
+      "report_path": "experiments/asic_notebook_power/int16_2x2/logical/results/fastconv-q12-internal-20261009-int16_2x2-6bdb5b0/reports/"
     },
     {
       "array": "3x3",
@@ -57,11 +59,11 @@
       "slow_corner_wns_ps": 1,
       "typical_corner_wns_ps": 381,
       "fast_corner_wns_ps": 500,
-      "slow_corner_critical_startpoint": "sauria_logic_i/psm_top_i/psm_shift_fsm_i/main_state_q_reg[1]",
-      "slow_corner_critical_endpoint": "sauria_logic_i/psm_top_i/psm_idxcnt_i/mask_q_reg[2]",
+      "slow_corner_critical_startpoint": "sauria_logic_i/psm_top_i/psm_shift_fsm_i/main_state_q_reg[1]/CP",
+      "slow_corner_critical_endpoint": "sauria_logic_i/psm_top_i/psm_idxcnt_i/mask_q_reg[2]/D",
       "genus_exit_code": 0,
-      "run_id": "fastconv-q8-internal-20261008-int16-3x3-3cdb4b2",
-      "report_path": "experiments/asic_notebook_power/int16_3x3/logical/results/fastconv-q8-internal-20261008-int16-3x3-3cdb4b2/reports/"
+      "run_id": "fastconv-q12-internal-20261009-int16_3x3-6bdb5b0",
+      "report_path": "experiments/asic_notebook_power/int16_3x3/logical/results/fastconv-q12-internal-20261009-int16_3x3-6bdb5b0/reports/"
     },
     {
       "array": "4x4",
@@ -74,11 +76,11 @@
       "slow_corner_wns_ps": 64,
       "typical_corner_wns_ps": 498,
       "fast_corner_wns_ps": 787,
-      "slow_corner_critical_startpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/sub_state_reg[0]",
-      "slow_corner_critical_endpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/wdata_reg[30]",
+      "slow_corner_critical_startpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/sub_state_reg[0]/CP",
+      "slow_corner_critical_endpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/wdata_reg[30]/D",
       "genus_exit_code": 0,
-      "run_id": "fastconv-q8-internal-20261008-int16-4x4-3cdb4b2",
-      "report_path": "experiments/asic_notebook_power/int16_4x4/logical/results/fastconv-q8-internal-20261008-int16-4x4-3cdb4b2/reports/"
+      "run_id": "fastconv-q12-internal-20261009-int16_4x4-6bdb5b0",
+      "report_path": "experiments/asic_notebook_power/int16_4x4/logical/results/fastconv-q12-internal-20261009-int16_4x4-6bdb5b0/reports/"
     },
     {
       "array": "5x5",
@@ -91,11 +93,11 @@
       "slow_corner_wns_ps": 2,
       "typical_corner_wns_ps": 378,
       "fast_corner_wns_ps": 501,
-      "slow_corner_critical_startpoint": "sauria_logic_i/psm_top_i/psm_shift_fsm_i/main_state_q_reg[2]",
-      "slow_corner_critical_endpoint": "sauria_logic_i/psm_top_i/psm_idxcnt_i/mask_q_reg[1]",
+      "slow_corner_critical_startpoint": "sauria_logic_i/psm_top_i/psm_shift_fsm_i/main_state_q_reg[2]/CP",
+      "slow_corner_critical_endpoint": "sauria_logic_i/psm_top_i/psm_idxcnt_i/mask_q_reg[1]/D",
       "genus_exit_code": 0,
-      "run_id": "fastconv-q8-internal-20261008-int16-5x5-3cdb4b2",
-      "report_path": "experiments/asic_notebook_power/int16_5x5/logical/results/fastconv-q8-internal-20261008-int16-5x5-3cdb4b2/reports/"
+      "run_id": "fastconv-q12-internal-20261009-int16_5x5-6bdb5b0",
+      "report_path": "experiments/asic_notebook_power/int16_5x5/logical/results/fastconv-q12-internal-20261009-int16_5x5-6bdb5b0/reports/"
     },
     {
       "array": "6x6",
@@ -108,11 +110,11 @@
       "slow_corner_wns_ps": 1,
       "typical_corner_wns_ps": 360,
       "fast_corner_wns_ps": 487,
-      "slow_corner_critical_startpoint": "sauria_logic_i/psm_top_i/psm_shift_fsm_i/main_state_q_reg[3]",
-      "slow_corner_critical_endpoint": "sauria_logic_i/psm_top_i/psm_idxcnt_i/mask_q_reg[2]",
+      "slow_corner_critical_startpoint": "sauria_logic_i/psm_top_i/psm_shift_fsm_i/main_state_q_reg[3]/CP",
+      "slow_corner_critical_endpoint": "sauria_logic_i/psm_top_i/psm_idxcnt_i/mask_q_reg[2]/D",
       "genus_exit_code": 0,
-      "run_id": "fastconv-q8-internal-20261008-int16-6x6-3cdb4b2",
-      "report_path": "experiments/asic_notebook_power/int16_6x6/logical/results/fastconv-q8-internal-20261008-int16-6x6-3cdb4b2/reports/"
+      "run_id": "fastconv-q12-internal-20261009-int16_6x6-6bdb5b0",
+      "report_path": "experiments/asic_notebook_power/int16_6x6/logical/results/fastconv-q12-internal-20261009-int16_6x6-6bdb5b0/reports/"
     }
   ]
 }

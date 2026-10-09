@@ -8,10 +8,10 @@ PYTHON ?= python3
 PROFILE ?= int16_6x6
 RUN_ID ?= $(shell date -u +%Y%m%dT%H%M%SZ)-$(shell git rev-parse --short HEAD)
 CASE ?=
-REPORT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261008.csv
-SYNTH_REPORT ?= experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261008.csv
-PPA_INPUT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261008.json
-SYNTH_INPUT ?= experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261008.json
+REPORT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261009.csv
+SYNTH_REPORT ?= experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261009.csv
+PPA_INPUT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261009.json
+SYNTH_INPUT ?= experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261009.json
 
 PROFILE_ROOT = experiments/asic_notebook_power/$(PROFILE)
 LOGICAL_RESULTS_ROOT = $(abspath $(PROFILE_ROOT)/logical/results/$(RUN_ID))

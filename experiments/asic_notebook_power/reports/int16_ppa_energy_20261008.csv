@@ -1,6 +1,6 @@
-array,x_used,y_used,active_pes,standard_cell_area_um2,layer_cycles,clock_period_ns,estimated_layer_time_us,wns_ps,timing_met_500mhz,power_mw,estimated_energy_uj,sram_power_included,output_checksum,run_id,source_commit
-2x2,1,2,2,26145.882,74686,2,149.372,64.0,true,4.32052,0.645365,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-2x2-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca
-3x3,3,3,9,35793.702,12256,2,24.512,1.0,true,10.55860,0.258812,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-3x3-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca
-4x4,3,3,9,40383.504,18034,2,36.068,64.0,true,9.41382,0.339538,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-4x4-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca
-5x5,3,5,15,56540.736,11740,2,23.480,2.0,true,13.52850,0.317649,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-5x5-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca
-6x6,3,6,18,64613.178,10810,2,21.620,1.0,true,15.35720,0.332023,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-6x6-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca
+cin,cout,array,x_used,y_used,active_pes,standard_cell_area_um2,layer_cycles,clock_period_ns,estimated_layer_time_us,wns_ps,timing_met_500mhz,power_mw,estimated_energy_uj,sram_power_included,output_checksum,run_id,source_commit
+3,3,2x2,1,2,2,26145.882,74686,2,149.372,64.0,true,4.32052,0.645365,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-2x2-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca
+3,3,3x3,3,3,9,35793.702,12256,2,24.512,1.0,true,10.55860,0.258812,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-3x3-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca
+3,3,4x4,3,3,9,40383.504,18034,2,36.068,64.0,true,9.41382,0.339538,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-4x4-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca
+3,3,5x5,3,5,15,56540.736,11740,2,23.480,2.0,true,13.52850,0.317649,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-5x5-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca
+3,3,6x6,3,6,18,64613.178,10810,2,21.620,1.0,true,15.35720,0.332023,false,2f4ec8c3,fastconv-q8-internal-20261008-int16-6x6-3cdb4b2,3cdb4b2bbec0d47f103fc31a7da7ce99be10cfca

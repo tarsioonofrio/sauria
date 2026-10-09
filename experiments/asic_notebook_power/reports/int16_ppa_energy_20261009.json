@@ -1,0 +1,92 @@
+{
+  "campaign_date": "2026-10-09",
+  "source_commit": "6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c",
+  "workload": {
+    "ifmap": [3, 32, 32],
+    "weights": [12, 3, 3, 3],
+    "ofmap": [12, 30, 30],
+    "cin": 3,
+    "cout": 12,
+    "operand_bits": 16,
+    "seed": 20261004,
+    "distribution": "normal(0,1), scaled by 2^8, truncated toward zero, signed wrap",
+    "checksum": "015f2e08",
+    "ifmap_sha256": "ed8cc8e1d630bcda662d5943dd8db49b804f9f94b2758e02fd63dd06cf6cfe7d",
+    "weights_sha256": "4bac62b127b2365860464998e1c9c00891184909470bed5aca73f63b1a55dccf"
+  },
+  "technology": "TSMC28",
+  "pvt": "TT 0.90 V 25 C",
+  "target_frequency_mhz": 500,
+  "clock_period_ns": 2,
+  "timing_scope": "accelerator_internal",
+  "external_shared_bandwidth_bits_per_cycle": 128,
+  "sram_power_included": false,
+  "energy_note": "Estimated as Joules total power multiplied by measured layer cycles and target clock period; SRAM power is excluded. Values use accelerator_internal timing constraints and the campaign's configured DRAM_BANDWIDTH=128.",
+  "results": [
+    {
+      "array": "2x2",
+      "x_used": 1,
+      "y_used": 2,
+      "standard_cell_area_um2": 26145.882,
+      "cell_count": 19560,
+      "layer_cycles": 293764,
+      "wns_ps": 64,
+      "power_mw": 4.29963,
+      "output_checksum": "015f2e08",
+      "run_id": "fastconv-q12-internal-20261009-int16_2x2-6bdb5b0",
+      "source_commit": "6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c"
+    },
+    {
+      "array": "3x3",
+      "x_used": 3,
+      "y_used": 3,
+      "standard_cell_area_um2": 35793.702,
+      "cell_count": 32019,
+      "layer_cycles": 44044,
+      "wns_ps": 1,
+      "power_mw": 10.7567,
+      "output_checksum": "015f2e08",
+      "run_id": "fastconv-q12-internal-20261009-int16_3x3-6bdb5b0",
+      "source_commit": "6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c"
+    },
+    {
+      "array": "4x4",
+      "x_used": 3,
+      "y_used": 3,
+      "standard_cell_area_um2": 40383.504,
+      "cell_count": 32566,
+      "layer_cycles": 67156,
+      "wns_ps": 64,
+      "power_mw": 9.29913,
+      "output_checksum": "015f2e08",
+      "run_id": "fastconv-q12-internal-20261009-int16_4x4-6bdb5b0",
+      "source_commit": "6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c"
+    },
+    {
+      "array": "5x5",
+      "x_used": 3,
+      "y_used": 5,
+      "standard_cell_area_um2": 56540.736,
+      "cell_count": 52556,
+      "layer_cycles": 41980,
+      "wns_ps": 2,
+      "power_mw": 13.4199,
+      "output_checksum": "015f2e08",
+      "run_id": "fastconv-q12-internal-20261009-int16_5x5-6bdb5b0",
+      "source_commit": "6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c"
+    },
+    {
+      "array": "6x6",
+      "x_used": 3,
+      "y_used": 6,
+      "standard_cell_area_um2": 64613.178,
+      "cell_count": 56793,
+      "layer_cycles": 38260,
+      "wns_ps": 1,
+      "power_mw": 15.0640,
+      "output_checksum": "015f2e08",
+      "run_id": "fastconv-q12-internal-20261009-int16_6x6-6bdb5b0",
+      "source_commit": "6bdb5b019feabb01ace7dc0a3d5e63c6e4fe815c"
+    }
+  ]
+}
