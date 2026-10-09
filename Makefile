@@ -8,8 +8,10 @@ PYTHON ?= python3
 PROFILE ?= int16_6x6
 RUN_ID ?= $(shell date -u +%Y%m%dT%H%M%SZ)-$(shell git rev-parse --short HEAD)
 CASE ?=
-REPORT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261006.csv
-SYNTH_REPORT ?= experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261007.csv
+REPORT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261008.csv
+SYNTH_REPORT ?= experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261008.csv
+PPA_INPUT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261008.json
+SYNTH_INPUT ?= experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261008.json
 
 PROFILE_ROOT = experiments/asic_notebook_power/$(PROFILE)
 LOGICAL_RESULTS_ROOT = $(abspath $(PROFILE_ROOT)/logical/results/$(RUN_ID))
@@ -44,8 +46,8 @@ help:
 	  '  make flow PROFILE=int16_6x6 [CASE=conv-x3-y6] [RUN_ID=id]'
 
 report:
-	$(PYTHON) scripts/generate_int16_ppa_csv.py --output "$(REPORT)"
-	$(PYTHON) scripts/generate_int16_synthesis_csv.py --output "$(SYNTH_REPORT)"
+	$(PYTHON) scripts/generate_int16_ppa_csv.py --input "$(PPA_INPUT)" --output "$(REPORT)"
+	$(PYTHON) scripts/generate_int16_synthesis_csv.py --input "$(SYNTH_INPUT)" --output "$(SYNTH_REPORT)"
 
 list-profiles:
 	@find experiments/asic_notebook_power -mindepth 1 -maxdepth 1 -type d -name 'int16_*' -printf '%f\n' | sort
