@@ -181,10 +181,11 @@ for every array. The 2026-10-09 five-array reports capture the earlier tiling
 The 2x2 profile uses a 6-channel X tile; 3x3 keeps a 3-channel tile, and the
 4x4 through 6x6 profiles use a 12-channel tile, within each profile's C-SRAM
 capacity. With output width 30, the 4x4 array cannot use `Y_used=4`; with
-`Cout=12`, the 5x5 array cannot use `X_used=5`. The retiled 6x6 has completed
-RTL, Genus, gate-level, and Joules stages; its standalone PPA and synthesis
-reports are linked from [`reports/README.md`](reports/README.md). The other
-retiled profiles still need fresh flows before their results are compared.
+`Cout=12`, the 5x5 array cannot use `X_used=5`. Retiled 2x2, 4x4, and 5x5
+completed RTL, Genus, gate-level, and Joules on commit `316013f`; 6x6 completed
+on `0f3f66c`. Their PPA and synthesis reports are linked from
+[`reports/README.md`](reports/README.md). The 3x3 mapping remains `X_used=3`,
+`Y_used=3` and already has a complete result from the five-array campaign.
 Each flow writes results into its own `int16_NxN` directory and immutable
 run-id paths.
 
@@ -235,8 +236,11 @@ It reports 64,613.178 µm² and 56,793 cells, with 21,658 layer cycles, 36 activ
 PEs, +1 ps slow-corner WNS, and 19.82780 mW Joules power. Estimated layer time
 is 43.316 µs and estimated energy is 0.858861 µJ at 2 ns. This is a marginal
 timing pass under `accelerator_internal`; SRAM macro area and power are
-excluded. Per-run simulation, synthesis, and power artifacts remain under each
-profile's `sim/run_artifacts/`, `logical/results/`, `power/results/`, and
+excluded. The retiled 2x2, 4x4, and 5x5 results from commit `316013f` are in
+[`int16_ppa_energy_retile2x2_4x4_5x5_20261009.csv`](reports/int16_ppa_energy_retile2x2_4x4_5x5_20261009.csv)
+and [`int16_synthesis_internal_500mhz_retile2x2_4x4_5x5_20261009.csv`](reports/int16_synthesis_internal_500mhz_retile2x2_4x4_5x5_20261009.csv).
+Per-run simulation, synthesis, and power artifacts remain under each profile's
+`sim/run_artifacts/`, `logical/results/`, `power/results/`, and
 `run_metadata/` directories on Paxos, as described above. See
 [`reports/README.md`](reports/README.md) for the report contents and how to
 regenerate the CSV.

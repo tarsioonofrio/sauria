@@ -18,6 +18,12 @@ as `int16_4x4/logical/results/<run_id>/`, `int16_4x4/sim/run_artifacts/`,
   reported +1 ps slow-corner WNS. Treat the timing result as marginal. Area and
   power exclude uncharacterized SRAM macros.
 
+- `int16_ppa_energy_retile2x2_4x4_5x5_20261009.csv` and
+  `int16_synthesis_internal_500mhz_retile2x2_4x4_5x5_20261009.csv` record the
+  retiled 2x2, 4x4, and 5x5 runs from source commit `316013f`. All three passed
+  RTL and gate-level golden checks with checksum `015f2e08` and generated Joules
+  reports. Their matching JSON files are the source records.
+
 - `int16_ppa_energy_20261009.csv` is the baseline RTL/gate-simulation and Joules
   PPA and energy table for arrays 2x2 through 6x6, from source commit
   `6bdb5b0` and the 2026-10-09 campaign. Its workload is Cin=3, Cout=12.
@@ -40,10 +46,18 @@ as `int16_4x4/logical/results/<run_id>/`, `int16_4x4/sim/run_artifacts/`,
 | Joules total power | 19.82780 mW |
 | Estimated energy per layer | 0.858861 µJ |
 
-The 6x6 timing pass is marginal at the slow corner and uses
-`accelerator_internal` scope. The energy value is estimated from Joules power
-and layer cycles at the 2 ns target period; it is not an integrated energy
-measurement. SRAM macro area and power are excluded.
+| Retiled array | X/Y used | Active PEs | Standard-cell area (µm²) | Cycles | Slow WNS (ps) | Power (mW) | Est. energy (µJ) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 2x2 | 2/2 | 4/4 | 26,145.882 | 100,142 | +64 | 6.20488 | 1.242738 |
+| 4x4 | 4/3 | 12/16 | 40,383.504 | 42,646 | +64 | 11.61220 | 0.990428 |
+| 5x5 | 4/5 | 20/25 | 56,540.736 | 35,365 | +2 | 14.86960 | 1.051727 |
+
+All retiled runs use `accelerator_internal` scope. The 5x5 and 6x6 timing
+passes are marginal at the slow corner (+2 ps and +1 ps). Energy is estimated
+from Joules power and layer cycles at the 2 ns target period; it is not an
+integrated energy measurement. SRAM macro area and power are excluded. The
+6x6 report is from source commit `0f3f66c`; the 2x2/4x4/5x5 report is from
+`316013f`, so these snapshots retain separate provenance.
 
 - `int16_ppa_energy_20261008.csv` and
   `int16_synthesis_internal_500mhz_20261008.csv` are historical reports from

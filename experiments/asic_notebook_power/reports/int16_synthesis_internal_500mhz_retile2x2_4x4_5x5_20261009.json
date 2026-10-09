@@ -1,0 +1,86 @@
+{
+  "campaign_date": "2026-10-09",
+  "source_commit": "316013f0a4fcd2228441d0858bd132c838510c78",
+  "technology": "TSMC28",
+  "genus_version": "21.12-s068_1",
+  "target_frequency_mhz": 500,
+  "clock_period_ns": 2.0,
+  "operand_bits": 16,
+  "workload": {
+    "ifmap": [3, 32, 32],
+    "weights": [12, 3, 3, 3],
+    "ofmap": [12, 30, 30],
+    "cin": 3,
+    "cout": 12,
+    "seed": 20261004,
+    "checksum": "015f2e08"
+  },
+  "external_interface": {
+    "axi_data_width_bits": 128,
+    "shared_bandwidth_bits_per_cycle": 128,
+    "bandwidth_is_shared_across_ifmap_weights_and_outputs": true,
+    "note": "DRAM_BANDWIDTH=128; not the planned 100/120-bit shared-budget comparison."
+  },
+  "timing_scope": "accelerator_internal",
+  "timing_scope_note": "Diagnostic scope excludes AXI-Lite AW/W valid-to-ready paths; it does not characterize full-wrapper timing.",
+  "sram_macro_area_included": false,
+  "area_note": "Mapped standard-cell area only. SRAM macro area is excluded.",
+  "corners": {
+    "slow": "0.81 V, 125 C",
+    "typical": "0.90 V, 25 C",
+    "fast": "0.99 V, -40 C"
+  },
+  "results": [
+    {
+      "array": "2x2",
+      "x_physical": 2,
+      "y_physical": 2,
+      "x_used": 2,
+      "y_used": 2,
+      "standard_cell_area_um2": 26145.882,
+      "cell_count": 19560,
+      "slow_corner_wns_ps": 64,
+      "typical_corner_wns_ps": 501,
+      "fast_corner_wns_ps": 769,
+      "slow_corner_critical_startpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/sub_state_reg[0]/CP",
+      "slow_corner_critical_endpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/wdata_reg[30]/D",
+      "genus_exit_code": 0,
+      "run_id": "retile-2x2-500mhz-20261009-316013f",
+      "report_path": "/sim/tarsio/sauria/experiments/asic_notebook_power/int16_2x2/logical/results/retile-2x2-500mhz-20261009-316013f/reports/"
+    },
+    {
+      "array": "4x4",
+      "x_physical": 4,
+      "y_physical": 4,
+      "x_used": 4,
+      "y_used": 3,
+      "standard_cell_area_um2": 40383.504,
+      "cell_count": 32566,
+      "slow_corner_wns_ps": 64,
+      "typical_corner_wns_ps": 498,
+      "fast_corner_wns_ps": 787,
+      "slow_corner_critical_startpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/sub_state_reg[0]/CP",
+      "slow_corner_critical_endpoint": "df_controller_i/sauria_interface_I/sauria_dma_controller_I/wdata_reg[30]/D",
+      "genus_exit_code": 0,
+      "run_id": "retile-4x4-500mhz-20261009-316013f",
+      "report_path": "/sim/tarsio/sauria/experiments/asic_notebook_power/int16_4x4/logical/results/retile-4x4-500mhz-20261009-316013f/reports/"
+    },
+    {
+      "array": "5x5",
+      "x_physical": 5,
+      "y_physical": 5,
+      "x_used": 4,
+      "y_used": 5,
+      "standard_cell_area_um2": 56540.736,
+      "cell_count": 52556,
+      "slow_corner_wns_ps": 2,
+      "typical_corner_wns_ps": 378,
+      "fast_corner_wns_ps": 501,
+      "slow_corner_critical_startpoint": "sauria_logic_i/psm_top_i/psm_shift_fsm_i/main_state_q_reg[2]/CP",
+      "slow_corner_critical_endpoint": "sauria_logic_i/psm_top_i/psm_idxcnt_i/mask_q_reg[1]/D",
+      "genus_exit_code": 0,
+      "run_id": "retile-5x5-500mhz-20261009-316013f",
+      "report_path": "/sim/tarsio/sauria/experiments/asic_notebook_power/int16_5x5/logical/results/retile-5x5-500mhz-20261009-316013f/reports/"
+    }
+  ]
+}
