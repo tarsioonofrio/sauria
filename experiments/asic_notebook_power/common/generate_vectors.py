@@ -74,7 +74,10 @@ for array_size in (2, 3, 4, 5, 6, 7, 8):
         "lanes": (array_size, array_size, array_size),
         "cases": {
             case_name: {
-                "shapes": ([3, 32, 32], [3, 3, 3, 3], [3, 30, 30]),
+                # Keep the same Cin=3, Cout=12 layer for every array. The
+                # output tile remains three channels so it fits the C SRAM;
+                # the controller iterates over all four output-channel tiles.
+                "shapes": ([3, 32, 32], [12, 3, 3, 3], [12, 30, 30]),
                 "tiling": {
                     "C_tile_shape": [3, 10, 30],
                     "tile_cin": 3,

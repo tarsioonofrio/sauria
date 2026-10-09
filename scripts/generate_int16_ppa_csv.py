@@ -14,6 +14,8 @@ SOURCE = ROOT / "experiments/asic_notebook_power/reports/int16_ppa_energy_202610
 DEFAULT_OUTPUT = ROOT / "experiments/asic_notebook_power/reports/int16_ppa_energy_20261006.csv"
 
 FIELDS = [
+    "cin",
+    "cout",
     "array",
     "x_used",
     "y_used",
@@ -41,6 +43,11 @@ def main() -> None:
 
     manifest = json.loads(args.input.read_text(encoding="utf-8"))
     period_ns = float(manifest["clock_period_ns"])
+    workload = manifest.get("workload", {})
+    input_shape = workload.get("ifmap", [])
+    output_shape = workload.get("ofmap", [])
+    cin = input_shape[0] if input_shape else ""
+    cout = output_shape[0] if output_shape else ""
     rows = []
     for result in manifest["results"]:
         cycles = int(result["layer_cycles"])
@@ -49,6 +56,8 @@ def main() -> None:
         layer_time_ns = cycles * period_ns
         rows.append(
             {
+                "cin": cin,
+                "cout": cout,
                 "array": result["array"],
                 "x_used": result["x_used"],
                 "y_used": result["y_used"],

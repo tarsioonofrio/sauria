@@ -14,6 +14,8 @@ SOURCE = ROOT / "experiments/asic_notebook_power/reports/int16_synthesis_interna
 DEFAULT_OUTPUT = ROOT / "experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261007.csv"
 
 FIELDS = [
+    "cin",
+    "cout",
     "array",
     "x_physical",
     "y_physical",
@@ -58,6 +60,11 @@ def main() -> None:
     manifest = json.loads(args.input.read_text(encoding="utf-8"))
     operand_bits = int(manifest["operand_bits"])
     external = manifest["external_interface"]
+    workload = manifest.get("workload", {})
+    input_shape = workload.get("ifmap", [])
+    output_shape = workload.get("ofmap", [])
+    cin = input_shape[0] if input_shape else ""
+    cout = output_shape[0] if output_shape else ""
     rows = []
     for result in manifest["results"]:
         x_physical = int(result["x_physical"])
@@ -66,6 +73,8 @@ def main() -> None:
         y_used = int(result["y_used"])
         rows.append(
             {
+                "cin": cin,
+                "cout": cout,
                 "array": result["array"],
                 "x_physical": x_physical,
                 "y_physical": y_physical,
