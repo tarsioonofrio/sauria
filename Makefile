@@ -17,13 +17,15 @@ PROFILE_ROOT = experiments/asic_notebook_power/$(PROFILE)
 LOGICAL_RESULTS_ROOT = $(abspath $(PROFILE_ROOT)/logical/results/$(RUN_ID))
 
 ifeq ($(PROFILE),int16_2x2)
-DEFAULT_CASE = conv-x1-y2
-else ifneq ($(filter $(PROFILE),int16_3x3 int16_4x4),)
+DEFAULT_CASE = conv-x2-y2
+else ifeq ($(PROFILE),int16_3x3)
 DEFAULT_CASE = conv-x3-y3
+else ifeq ($(PROFILE),int16_4x4)
+DEFAULT_CASE = conv-x4-y3
 else ifeq ($(PROFILE),int16_5x5)
-DEFAULT_CASE = conv-x3-y5
+DEFAULT_CASE = conv-x4-y5
 else ifeq ($(PROFILE),int16_6x6)
-DEFAULT_CASE = conv-x3-y6
+DEFAULT_CASE = conv-x6-y6
 endif
 SELECTED_CASE = $(if $(strip $(CASE)),$(CASE),$(DEFAULT_CASE))
 
@@ -39,11 +41,11 @@ help:
 	  '  make list-profiles' \
 	  '' \
 	  'Simulation and ASIC flow (run on Paxos inside tmux):' \
-	  '  make rtl-sim PROFILE=int16_6x6 [CASE=conv-x3-y6] [RUN_ID=id]' \
+	  '  make rtl-sim PROFILE=int16_6x6 [CASE=conv-x6-y6] [RUN_ID=id]' \
 	  '  make synth PROFILE=int16_6x6 [RUN_ID=id]' \
-	  '  make gate-sim PROFILE=int16_6x6 [CASE=conv-x3-y6] [RUN_ID=id]' \
-	  '  make power PROFILE=int16_6x6 [CASE=conv-x3-y6] [RUN_ID=id]' \
-	  '  make flow PROFILE=int16_6x6 [CASE=conv-x3-y6] [RUN_ID=id]'
+	  '  make gate-sim PROFILE=int16_6x6 [CASE=conv-x6-y6] [RUN_ID=id]' \
+	  '  make power PROFILE=int16_6x6 [CASE=conv-x6-y6] [RUN_ID=id]' \
+	  '  make flow PROFILE=int16_6x6 [CASE=conv-x6-y6] [RUN_ID=id]'
 
 report:
 	$(PYTHON) scripts/generate_int16_ppa_csv.py --input "$(PPA_INPUT)" --output "$(REPORT)"

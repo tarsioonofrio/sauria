@@ -164,20 +164,33 @@ Run one profile at a time in a task-specific checkout on Paxos through SSH and
 `power/results/<run_id>/<case>/`, and `run_metadata/<run_id>/`. Use a
 task-specific `TMPDIR` under `/sim` for large tool temporaries.
 
-The signed INT16 array sweep uses the same 3x32x32 layer, filter, output shape,
-seed, and 16-bit signed operands/partial sums for every array. To satisfy the
-workload tiling constraints, `X_used` is the largest divisor of the three
-output channels no larger than the physical X size, and `Y_used` is the largest
-divisor of the output width (30) no larger than the physical Y size. Thus 2x2
-uses 1x2, 3x3 uses 3x3, 4x4 uses 3x3, 5x5 uses 3x5, and 6x6 uses 3x6 active
-PEs. Each flow writes results into its own `int16_NxN` directory and immutable
-run-id paths.
+The signed INT16 workload uses the same `Cin=3`, `Cout=12`, `32x32` input,
+`3x3` filter, `30x30` output, seed, and 16-bit signed operands/partial sums
+for every array. The 2026-10-09 reports capture the earlier tiling
+(`C_tile_shape=[3,10,30]`); the profiles are now configured for this mapping:
 
-For example, the 6x6 signed INT16 case uses `X_used=3`, `Y_used=6`, and a 2 ns
-clock:
+| Profile | `X_used` | `Y_used` | `C_tile_shape` | Active PEs |
+|---|---:|---:|---:|---:|
+| 2x2 | 2 | 2 | `[6,10,30]` | 4/4 |
+| 3x3 | 3 | 3 | `[3,10,30]` | 9/9 |
+| 4x4 | 4 | 3 | `[12,10,30]` | 12/16 |
+| 5x5 | 4 | 5 | `[12,10,30]` | 20/25 |
+| 6x6 | 6 | 6 | `[12,10,30]` | 36/36 |
+
+`X_used` maps output-channel lanes and `Y_used` maps output-width lanes.
+The 2x2 profile uses a 6-channel X tile; 3x3 keeps a 3-channel tile, and the
+4x4 through 6x6 profiles use a 12-channel tile, within each profile's C-SRAM
+capacity. With output width 30, the 4x4 array cannot use `Y_used=4`; with
+`Cout=12`, the 5x5 array cannot use `X_used=5`. The 2026-10-09 reports remain
+results for the earlier tiling; the retiled profiles require fresh functional
+and ASIC runs before their PPA results are reported. Each flow writes results
+into its own `int16_NxN` directory and immutable run-id paths.
+
+For example, the retiled 6x6 signed INT16 case uses `X_used=6`, `Y_used=6`, and
+a 2 ns clock:
 
 ```bash
-SIM_CASES=conv-x3-y6 RUN_ID=<unique-run-id> ./experiments/asic_notebook_power/run_campaign.sh int16_6x6
+SIM_CASES=conv-x6-y6 RUN_ID=<unique-run-id> ./experiments/asic_notebook_power/run_campaign.sh int16_6x6
 ```
 
 The RTL layer check omits SHM dumping and per-cycle feeder traces by default to
