@@ -166,8 +166,8 @@ task-specific `TMPDIR` under `/sim` for large tool temporaries.
 
 The signed INT16 workload uses the same `Cin=3`, `Cout=12`, `32x32` input,
 `3x3` filter, `30x30` output, seed, and 16-bit signed operands/partial sums
-for every array. The 2026-10-09 reports capture the earlier tiling
-(`C_tile_shape=[3,10,30]`); the profiles are now configured for this mapping:
+for every array. The 2026-10-09 five-array reports capture the earlier tiling
+(`C_tile_shape=[3,10,30]`). The profiles are now configured for this mapping:
 
 | Profile | `X_used` | `Y_used` | `C_tile_shape` | Active PEs |
 |---|---:|---:|---:|---:|
@@ -181,10 +181,12 @@ for every array. The 2026-10-09 reports capture the earlier tiling
 The 2x2 profile uses a 6-channel X tile; 3x3 keeps a 3-channel tile, and the
 4x4 through 6x6 profiles use a 12-channel tile, within each profile's C-SRAM
 capacity. With output width 30, the 4x4 array cannot use `Y_used=4`; with
-`Cout=12`, the 5x5 array cannot use `X_used=5`. The 2026-10-09 reports remain
-results for the earlier tiling; the retiled profiles require fresh functional
-and ASIC runs before their PPA results are reported. Each flow writes results
-into its own `int16_NxN` directory and immutable run-id paths.
+`Cout=12`, the 5x5 array cannot use `X_used=5`. The retiled 6x6 has completed
+RTL, Genus, gate-level, and Joules stages; its standalone PPA and synthesis
+reports are linked from [`reports/README.md`](reports/README.md). The other
+retiled profiles still need fresh flows before their results are compared.
+Each flow writes results into its own `int16_NxN` directory and immutable
+run-id paths.
 
 For example, the retiled 6x6 signed INT16 case uses `X_used=6`, `Y_used=6`, and
 a 2 ns clock:
@@ -202,12 +204,12 @@ Use the root `Makefile` for `rtl-sim`, `synth`, `gate-sim`, `power`, and full
 `flow` targets. `make report` writes the measured INT16 PPA and estimated
 per-layer energy table to CSV. The input JSON records each run ID and source
 commit. Energy is calculated from the Joules total and layer cycles at the
-2 ns target period; it is an estimate under that clock and inherits both the
-negative timing slack and SRAM power exclusion described above.
+2 ns target period; it is an estimate under that clock and inherits the
+reported timing scope/slack and SRAM power exclusion described above.
 
 ## Result reports
 
-Durable summary reports are stored in [`reports/`](reports/). The current
+Durable summary reports are stored in [`reports/`](reports/). The historical
 INT16 PPA and estimated-energy table from the 2026-10-06 campaign is
 [`int16_ppa_energy_20261006.csv`](reports/int16_ppa_energy_20261006.csv),
 with its source data and run metadata in
@@ -222,9 +224,19 @@ active feeder lanes, and the external shared bandwidth separately. For these
 INT16 profiles, each local read returns up to Y IFMAP words from SRAMA and X
 weight words from SRAMB; the external AXI configuration is 128 bits per beat
 with a shared 128-bit/cycle budget (8 INT16 words/cycle total). `make report`
-regenerates both CSVs.
-Per-run simulation, synthesis, and power artifacts remain under each profile's
-`sim/run_artifacts/`, `logical/results/`, `power/results/`, and
-`run_metadata/` directories, as described above. See
+regenerates both baseline CSVs.
+The standalone retiled 6x6 snapshot is
+[`int16_ppa_energy_retile6x6_20261009.csv`](reports/int16_ppa_energy_retile6x6_20261009.csv)
+and its synthesis table is
+[`int16_synthesis_internal_500mhz_retile6x6_20261009.csv`](reports/int16_synthesis_internal_500mhz_retile6x6_20261009.csv).
+They use run ID `retile-6x6-500mhz-20261009-0f3f66c`, source commit
+`0f3f66c1dafe80701eaee6f8e505e770e6c9c483`, and `X_used=Y_used=6`.
+It reports 64,613.178 µm² and 56,793 cells, with 21,658 layer cycles, 36 active
+PEs, +1 ps slow-corner WNS, and 19.82780 mW Joules power. Estimated layer time
+is 43.316 µs and estimated energy is 0.858861 µJ at 2 ns. This is a marginal
+timing pass under `accelerator_internal`; SRAM macro area and power are
+excluded. Per-run simulation, synthesis, and power artifacts remain under each
+profile's `sim/run_artifacts/`, `logical/results/`, `power/results/`, and
+`run_metadata/` directories on Paxos, as described above. See
 [`reports/README.md`](reports/README.md) for the report contents and how to
 regenerate the CSV.

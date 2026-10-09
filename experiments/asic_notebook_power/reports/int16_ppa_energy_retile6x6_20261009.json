@@ -1,0 +1,65 @@
+{
+  "campaign_date": "2026-10-09",
+  "campaign_end": "2026-10-09T19:33:03-03:00",
+  "source_commit": "0f3f66c1dafe80701eaee6f8e505e770e6c9c483",
+  "run_id": "retile-6x6-500mhz-20261009-0f3f66c",
+  "profile": "int16_6x6",
+  "case": "conv-x6-y6",
+  "technology": "TSMC28",
+  "genus_version": "21.12-s068_1",
+  "xcelium_version": "23.03",
+  "target_frequency_mhz": 500,
+  "clock_period_ns": 2.0,
+  "timing_scope": "accelerator_internal",
+  "external_shared_bandwidth_bits_per_cycle": 128,
+  "sram_power_included": false,
+  "workload": {
+    "ifmap": [3, 32, 32],
+    "weights": [12, 3, 3, 3],
+    "ofmap": [12, 30, 30],
+    "cin": 3,
+    "cout": 12,
+    "kernel": [3, 3],
+    "stride": 1,
+    "padding": 0,
+    "operand_bits": 16,
+    "accumulator_bits": 16,
+    "seed": 20261004,
+    "distribution": "normal(0,1), scaled by 2^8, truncated toward zero, signed wrap",
+    "ifmap_sha256": "ed8cc8e1d630bcda662d5943dd8db49b804f9f94b2758e02fd63dd06cf6cfe7d",
+    "weights_sha256": "4bac62b127b2365860464998e1c9c00891184909470bed5aca73f63b1a55dccf",
+    "output_checksum": "015f2e08"
+  },
+  "simulation": {
+    "rtl_exit_code": 0,
+    "gate_exit_code": 0,
+    "layer_cycles": 21658,
+    "dram_service_cycles": 15585,
+    "external_bytes_per_layer": 50760,
+    "outputs_checked": 10800,
+    "output_checksum": "015f2e08",
+    "rtl_artifact": "/sim/tarsio/sauria/experiments/asic_notebook_power/int16_6x6/sim/run_artifacts/retile-6x6-500mhz-20261009-0f3f66c/conv-x6-y6/rtl-xrun.log",
+    "gate_artifact": "/sim/tarsio/sauria/experiments/asic_notebook_power/int16_6x6/sim/run_artifacts/retile-6x6-500mhz-20261009-0f3f66c/conv-x6-y6/gate-xrun.log"
+  },
+  "results": [
+    {
+      "array": "6x6",
+      "x_used": 6,
+      "y_used": 6,
+      "standard_cell_area_um2": 64613.178,
+      "cell_count": 56793,
+      "layer_cycles": 21658,
+      "wns_ps": 1,
+      "power_mw": 19.8278,
+      "output_checksum": "015f2e08",
+      "run_id": "retile-6x6-500mhz-20261009-0f3f66c",
+      "source_commit": "0f3f66c1dafe80701eaee6f8e505e770e6c9c483",
+      "power_report_path": "/sim/tarsio/sauria/experiments/asic_notebook_power/int16_6x6/power/results/retile-6x6-500mhz-20261009-0f3f66c/conv-x6-y6/power_evaluation.txt"
+    }
+  ],
+  "notes": [
+    "Joules and area exclude SRAM macros; SRAM instances are black boxes without characterized macro area or power.",
+    "Reported WNS is from the 0.81 V, 125 C slow corner under accelerator_internal timing scope; +1 ps is a marginal timing pass.",
+    "The estimated layer energy uses reported total power times layer cycles times the 2 ns target period; it is not a measured energy integral."
+  ]
+}

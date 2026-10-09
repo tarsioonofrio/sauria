@@ -9,17 +9,41 @@ as `int16_4x4/logical/results/<run_id>/`, `int16_4x4/sim/run_artifacts/`,
 
 ## Current table
 
-- `int16_ppa_energy_20261009.csv` is the current RTL/gate-simulation and Joules
+- `int16_ppa_energy_retile6x6_20261009.csv` and
+  `int16_synthesis_internal_500mhz_retile6x6_20261009.csv` record the fresh
+  2026-10-09 retiled 6x6 run from source commit `0f3f66c`. This snapshot covers
+  only that variant (`X_used=6`, `Y_used=6`); its workload is Cin=3/Cout=12.
+- The matching JSON files are the source records. The run passed RTL and
+  gate-level golden checks with checksum `015f2e08`, completed Joules, and
+  reported +1 ps slow-corner WNS. Treat the timing result as marginal. Area and
+  power exclude uncharacterized SRAM macros.
+
+- `int16_ppa_energy_20261009.csv` is the baseline RTL/gate-simulation and Joules
   PPA and energy table for arrays 2x2 through 6x6, from source commit
   `6bdb5b0` and the 2026-10-09 campaign. Its workload is Cin=3, Cout=12.
 - `int16_ppa_energy_20261009.json` is the source record for that table. It
   retains tensor shapes and hashes, run IDs, measured area, layer cycles,
   timing slack, Joules power, output checksum, and source commit.
-- `int16_synthesis_internal_500mhz_20261009.csv` records Genus results for all
+- `int16_synthesis_internal_500mhz_20261009.csv` records baseline Genus results for all
   five arrays from the same campaign, including area, cell count, critical
   paths, and slack at all three corners.
 - `int16_synthesis_internal_500mhz_20261009.json` is the source record for
   that table, including the Cin=3/Cout=12 workload and per-run report paths.
+
+| Retiled 6x6 metric | Result |
+|---|---:|
+| Standard-cell area | 64,613.178 µm² |
+| Cell count | 56,793 |
+| Active PEs | 36/36 |
+| Layer cycles / estimated time | 21,658 / 43.316 µs |
+| Slow / typical / fast WNS | +1 / +360 / +487 ps |
+| Joules total power | 19.82780 mW |
+| Estimated energy per layer | 0.858861 µJ |
+
+The 6x6 timing pass is marginal at the slow corner and uses
+`accelerator_internal` scope. The energy value is estimated from Joules power
+and layer cycles at the 2 ns target period; it is not an integrated energy
+measurement. SRAM macro area and power are excluded.
 
 - `int16_ppa_energy_20261008.csv` and
   `int16_synthesis_internal_500mhz_20261008.csv` are historical reports from
