@@ -72,6 +72,11 @@ while IFS= read -r include_dir; do
     generic_include_args+=("-I$include_dir")
 done < "$CONFIG_ROOT/list-incdir.txt"
 
+verilator_cflags=()
+if [[ -n "${VERILATOR_CFLAGS:-}" ]]; then
+    verilator_cflags+=(-CFLAGS "$VERILATOR_CFLAGS")
+fi
+
 case_list=()
 if [[ -n "${SIM_CASES:-}" ]]; then
     read -r -a case_list <<< "$SIM_CASES"
@@ -114,6 +119,11 @@ for case_name in "${case_list[@]}"; do
     VECTOR_ROOT="$CASE_ROOT/vectors"
     mkdir -p "$CASE_ROOT/rtl" "$CASE_ROOT/gate"
     vector_args=()
+    if [[ "${COUNT_ONLY:-0}" == 1 ]]; then
+        [[ "$(basename "$CONFIG_ROOT")" == int16_6x6 ]] || { echo "COUNT_ONLY is currently supported only for int16_6x6" >&2; exit 2; }
+        [[ "${SIM_CHANNELS:-}" =~ ^(32|64|128|256|512)$ ]] || { echo "COUNT_ONLY requires SIM_CHANNELS=32|64|128|256|512" >&2; exit 2; }
+        vector_args+=(--count-only --channels "$SIM_CHANNELS")
+    fi
     if [[ -n "${SIM_VECTOR_INPUT:-}" ]]; then
         [[ "${#case_list[@]}" -eq 1 ]] || { echo "SIM_VECTOR_INPUT supports exactly one case per run" >&2; exit 2; }
         [[ -s "$SIM_VECTOR_INPUT" ]] || { echo "Missing SIM_VECTOR_INPUT: $SIM_VECTOR_INPUT" >&2; exit 2; }
@@ -136,6 +146,7 @@ for case_name in "${case_list[@]}"; do
         "+VECTOR_DIR=$VECTOR_ROOT"
         "+MAX_LAYER_CYCLES=${MAX_LAYER_CYCLES:-20000000}"
     )
+    if [[ "${COUNT_ONLY:-0}" == 1 ]]; then PLUSARGS+=("+COUNT_ONLY"); fi
     if [[ "${TRACE_DETAIL:-0}" == 1 ]]; then PLUSARGS+=("+TRACE_DETAIL"); fi
     if [[ "$SIM_STAGE" != gate ]]; then
         case "$SIMULATOR" in
@@ -168,6 +179,7 @@ for case_name in "${case_list[@]}"; do
                     cd "$CASE_ROOT/rtl"
                     "$VERILATOR" --binary --timing --top-module tb -Wno-fatal \
                         --Mdir "$CASE_ROOT/rtl/obj_dir" -o sauria_asic_tb \
+                        "${verilator_cflags[@]}" \
                         "${generic_include_args[@]}" "${generic_define_args[@]}" "${rtl_files[@]}" "$TB" \
                         > "$SIM_LOG" 2>&1
                     "$CASE_ROOT/rtl/obj_dir/sauria_asic_tb" "${PLUSARGS[@]}" \
@@ -177,7 +189,11 @@ for case_name in "${case_list[@]}"; do
         esac
         [[ -s "$CASE_ROOT/rtl/layer_window.txt" ]] || { echo "$case_name RTL run did not create layer window" >&2; exit 3; }
         cp "$CASE_ROOT/rtl/layer_window.txt" "$CASE_ROOT/rtl-layer-window.txt"
-        grep -q 'NOTEBOOK_LAYER_PASS' "$SIM_LOG" || { echo "$case_name RTL full-layer golden check missing in $SIM_LOG" >&2; exit 4; }
+        if [[ "${COUNT_ONLY:-0}" == 1 ]]; then
+            grep -q 'SRAM_ACCESS_COUNT_ONLY_PASS' "$SIM_LOG" || { echo "$case_name RTL count-only completion missing in $SIM_LOG" >&2; exit 4; }
+        else
+            grep -q 'NOTEBOOK_LAYER_PASS' "$SIM_LOG" || { echo "$case_name RTL full-layer golden check missing in $SIM_LOG" >&2; exit 4; }
+        fi
     fi
 
     if [[ "$SIM_STAGE" != rtl ]]; then

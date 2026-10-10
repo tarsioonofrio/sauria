@@ -230,7 +230,34 @@ def generate_normal_q8_int16_dataset(outdir: Path, seed: int) -> tuple[np.ndarra
     return a_q8, b_q8, output, {"dataset_dir": "normal_dataset", "generator": "internal-normal-q8", "generation": generation}
 
 
-def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, outdir: Path):
+def generate_random_count_only_tensors(a_shape: tuple[int, ...], b_shape: tuple[int, ...], out_shape: tuple[int, ...], seed: int):
+    """Generate deterministic Gaussian Q8 operands without computing a golden convolution."""
+    rng = np.random.RandomState(seed)
+    a_float = rng.normal(0, 1, size=a_shape)
+    b_float = rng.normal(0, 1, size=b_shape)
+    a = signed_wrap((a_float * (1 << 8)).astype(np.int64), 16).astype(np.int16)
+    b = signed_wrap((b_float * (1 << 8)).astype(np.int64), 16).astype(np.int16)
+    output = np.zeros(out_shape, dtype=np.int64)
+    summary = {
+        "generator": "NumPy RandomState normal Q8 count-only; no convolution/golden computed",
+        "seed": seed,
+        "distribution": {"name": "normal", "mean": 0, "standard_deviation": 1},
+        "quantization": {
+            "fractional_bits": 8,
+            "operation": "truncate toward zero: (value * 2^8).astype(int)",
+            "signed_bits": 16,
+            "overflow": "two's-complement wrap modulo 2^16",
+        },
+        "tensors": {
+            "ifmap": {"shape": list(a.shape), "sha256": tensor_sha256(a)},
+            "weights": {"shape": list(b.shape), "sha256": tensor_sha256(b)},
+            "unused_zero_output_placeholder": {"shape": list(output.shape)},
+        },
+    }
+    return a, b, output, summary
+
+
+def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, outdir: Path, count_only: bool = False):
     if profile == "fp16_8x16":
         rng = np.random.default_rng(seed)
         np.random.seed(seed)
@@ -241,15 +268,22 @@ def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, ou
     shapes = PROFILES[profile]["cases"][case]["shapes"]
     a_shape, b_shape, out_shape = shapes
     if profile.startswith("int16_"):
-        a, b, source_golden, dataset_summary = generate_normal_q8_int16_dataset(
-            outdir,
-            seed,
-        )
-        if a.shape != tuple(a_shape) or b.shape != tuple(b_shape):
-            raise RuntimeError(
-                f"Generated workload shape mismatch: A={a.shape}, B={b.shape}; "
-                f"expected A={a_shape}, B={b_shape}"
+        if count_only:
+            a, b, source_golden, dataset_summary = generate_random_count_only_tensors(
+                tuple(a_shape), tuple(b_shape), tuple(out_shape), seed
             )
+            c = np.zeros(out_shape, dtype=np.int64)
+            return a, b, c, source_golden, "count-only random operands; output reference not calculated", dataset_summary
+        else:
+            a, b, source_golden, dataset_summary = generate_normal_q8_int16_dataset(
+                outdir,
+                seed,
+            )
+            if a.shape != tuple(a_shape) or b.shape != tuple(b_shape):
+                raise RuntimeError(
+                    f"Generated workload shape mismatch: A={a.shape}, B={b.shape}; "
+                    f"expected A={a_shape}, B={b_shape}"
+                )
     else:
         rng = np.random.default_rng(seed)
         a = rng.integers(-127, 127, size=a_shape, dtype=np.int16).astype(np.int8)
@@ -318,12 +352,32 @@ def main() -> int:
         type=Path,
         help="use A, B, C, output, and seed arrays from this NPZ instead of generated vectors",
     )
+    parser.add_argument("--count-only", action="store_true", help="generate random operands without computing or checking a golden convolution")
+    parser.add_argument("--channels", type=int, choices=(32, 64, 128, 256, 512), help="Cin=Cout for the 6x6 SRAM access count workload")
     args = parser.parse_args()
 
     profile = PROFILES[args.profile]
     if args.case not in profile["cases"]:
         parser.error(f"unknown case {args.case!r} for {args.profile}")
-    case_spec = profile["cases"][args.case]
+    case_spec = dict(profile["cases"][args.case])
+    if args.channels is not None or args.count_only:
+        if args.profile != "int16_6x6" or not args.count_only or args.channels is None:
+            parser.error("--channels is supported only with --count-only for int16_6x6")
+        channels = args.channels
+        # Cin/Cout are powers of two and are not divisible by the physical
+        # array dimension 6. Use X_used=4 and Y_used=6: 24 physical PEs are
+        # active, while all requested channels are processed without padding.
+        case_spec["shapes"] = (
+            [channels, 32, 32],
+            [channels, channels, 3, 3],
+            [channels, 30, 30],
+        )
+        case_spec["tiling"] = {
+            "C_tile_shape": [4, 10, 30],
+            "tile_cin": 32,
+            "X_used": 4,
+            "Y_used": 6,
+        }
     outdir = args.out.resolve()
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -354,7 +408,7 @@ def main() -> int:
         vector_source = str(args.input_npz.resolve())
     else:
         a, b, c, output, golden_model, dataset_summary = case_tensors(
-            args.profile, args.case, hopts, conv, seed, outdir
+            args.profile, args.case, hopts, conv, seed, outdir, count_only=args.count_only
         )
     if tuple(output.shape) != tuple(shapes[2]):
         raise RuntimeError(f"model output shape {output.shape} does not match requested {shapes[2]}")
@@ -440,6 +494,7 @@ def main() -> int:
             "start_policy": "one layer start; controller schedules all tiles",
         },
         "golden_model": golden_model,
+        "validation": "skipped; SRAM access counting only" if args.count_only else "full output compared against generated golden",
         "dataset_generation": dataset_summary,
         "tensor_sha256": {
             "ifmap": tensor_sha256(a),

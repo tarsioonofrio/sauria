@@ -4,8 +4,8 @@ module tb;
     localparam int MEM_W = `AXI_NOC_DATA_WIDTH;
     localparam int MEM_BYTES = MEM_W / 8;
     localparam int MAX_CONFIG_WORDS = 128;
-    localparam int MAX_DRAM_BYTES = 2_000_000;
-    localparam int MAX_OUTPUT_VALUES = 262_144;
+    localparam int MAX_DRAM_BYTES = 8_000_000;
+    localparam int MAX_OUTPUT_VALUES = 1_000_000;
     localparam int DMA_CFG_CTRL = 32'h00;
     localparam int DMA_CFG_IRQ_MASK = 32'h04;
     localparam int DMA_CFG_IRQ_STATUS = 32'h0c;
@@ -65,6 +65,7 @@ module tb;
     logic [31:0] dram_c_offset;
     logic [31:0] output_bytes;
     logic [31:0] max_layer_cycles;
+    logic count_only;
 
     logic dma_aw_pending = 1'b0;
     logic dma_w_pending = 1'b0;
@@ -1727,6 +1728,7 @@ module tb;
 
     initial begin : layer_test
         trace_detail = $test$plusargs("TRACE_DETAIL");
+        count_only = $test$plusargs("COUNT_ONLY");
         if (!$value$plusargs("CONTROLLER_CONFIG_WORDS=%d", controller_count_arg)) $fatal(1, "missing CONTROLLER_CONFIG_WORDS");
         if (!$value$plusargs("DRAM_BYTES=%d", dram_bytes_arg)) $fatal(1, "missing DRAM_BYTES");
         if (!$value$plusargs("OUTPUT_VALUES=%d", output_values_arg)) $fatal(1, "missing OUTPUT_VALUES");
@@ -1749,13 +1751,15 @@ module tb;
 
         $readmemh({vector_dir, "/controller_config.mem"}, controller_words);
         $readmemh({vector_dir, "/dram.mem"}, dram);
-        $readmemh({vector_dir, "/dram_gold.mem"}, dram_gold);
-        $readmemh({vector_dir, "/golden.mem"}, golden);
-        initial_output_mismatches = 0;
-        for (byte_idx = dram_c_offset; byte_idx < dram_bytes; byte_idx = byte_idx + 1)
-            if (dram[byte_idx] !== dram_gold[byte_idx]) initial_output_mismatches = initial_output_mismatches + 1;
-        if (initial_output_mismatches == 0)
-            $fatal(1, "DRAM output region already equals golden; output DMA could be skipped");
+        if (!count_only) begin
+            $readmemh({vector_dir, "/dram_gold.mem"}, dram_gold);
+            $readmemh({vector_dir, "/golden.mem"}, golden);
+            initial_output_mismatches = 0;
+            for (byte_idx = dram_c_offset; byte_idx < dram_bytes; byte_idx = byte_idx + 1)
+                if (dram[byte_idx] !== dram_gold[byte_idx]) initial_output_mismatches = initial_output_mismatches + 1;
+            if (initial_output_mismatches == 0)
+                $fatal(1, "DRAM output region already equals golden; output DMA could be skipped");
+        end
         if (output_bytes != dram_bytes - dram_c_offset)
             $fatal(1, "output byte range mismatch: expected=%0d C-region=%0d", output_bytes, dram_bytes - dram_c_offset);
         repeat (10) @(posedge clk);
@@ -1945,29 +1949,34 @@ module tb;
         $fdisplay(fd, "C,%0d,%0d,%0d", sramc_read_count, sramc_write_count, sramc_read_count + sramc_write_count);
         $fclose(fd);
 
-        errors = 0;
-        checksum = 32'h811c9dc5;
-        fd = $fopen({artifact_dir, "/golden-mismatch-trace.txt"}, "w");
-        if (fd == 0) $fatal(1, "cannot create golden mismatch trace");
-        for (byte_idx = dram_c_offset; byte_idx < dram_bytes; byte_idx = byte_idx + 1) begin
-            if (dram[byte_idx] !== dram_gold[byte_idx]) begin
-                $fdisplay(fd, "byte=%0d got=%02x expected=%02x", byte_idx, dram[byte_idx], dram_gold[byte_idx]);
-                if (errors < 10)
-                    $display("DRAM_GOLDEN_MISMATCH byte=%0d got=%02x expected=%02x", byte_idx, dram[byte_idx], dram_gold[byte_idx]);
-                errors = errors + 1;
-            end
-            checksum = (checksum ^ dram[byte_idx]) * 32'h01000193;
-        end
-        $fclose(fd);
-        if (errors != 0) $fatal(1, "full-layer golden mismatch: %0d output bytes", errors);
         if (dma_jobs == 0 || dma_ext_read_bytes == 0 || dma_ext_write_bytes == 0)
             $fatal(1, "layer did not exercise both external DRAM directions");
         if (dma_ext_write_bytes != output_bytes)
             $fatal(1, "external output writes do not cover the full layer: wrote=%0d expected=%0d", dma_ext_write_bytes, output_bytes);
-        $display("OUTPUTS_CHECKED=%0d", output_values);
-        $display("OUTPUT_BYTES_CHECKED=%0d", dram_bytes - dram_c_offset);
-        $display("OUTPUT_CHECKSUM=%08x", checksum);
-        $display("NOTEBOOK_LAYER_PASS");
+        if (count_only) begin
+            $display("OUTPUT_VALIDATION=SKIPPED_COUNT_ONLY");
+            $display("SRAM_ACCESS_COUNT_ONLY_PASS");
+        end else begin
+            errors = 0;
+            checksum = 32'h811c9dc5;
+            fd = $fopen({artifact_dir, "/golden-mismatch-trace.txt"}, "w");
+            if (fd == 0) $fatal(1, "cannot create golden mismatch trace");
+            for (byte_idx = dram_c_offset; byte_idx < dram_bytes; byte_idx = byte_idx + 1) begin
+                if (dram[byte_idx] !== dram_gold[byte_idx]) begin
+                    $fdisplay(fd, "byte=%0d got=%02x expected=%02x", byte_idx, dram[byte_idx], dram_gold[byte_idx]);
+                    if (errors < 10)
+                        $display("DRAM_GOLDEN_MISMATCH byte=%0d got=%02x expected=%02x", byte_idx, dram[byte_idx], dram_gold[byte_idx]);
+                    errors = errors + 1;
+                end
+                checksum = (checksum ^ dram[byte_idx]) * 32'h01000193;
+            end
+            $fclose(fd);
+            if (errors != 0) $fatal(1, "full-layer golden mismatch: %0d output bytes", errors);
+            $display("OUTPUTS_CHECKED=%0d", output_values);
+            $display("OUTPUT_BYTES_CHECKED=%0d", dram_bytes - dram_c_offset);
+            $display("OUTPUT_CHECKSUM=%08x", checksum);
+            $display("NOTEBOOK_LAYER_PASS");
+        end
         $finish;
     end
 
