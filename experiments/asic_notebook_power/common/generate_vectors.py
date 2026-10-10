@@ -157,8 +157,8 @@ def fp16_fma_convolution(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndar
     return acc.astype(np.float16)
 
 
-def generate_normal_q8_dataset(outdir: Path, seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-    """Generate the shared FastConv-compatible N(0, 1), Q8 tensors locally."""
+def generate_normal_q8_int16_dataset(outdir: Path, seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
+    """Generate the shared N(0, 1), Q8 workload as signed 16-bit data."""
     if seed != 0:
         raise ValueError(f"The shared workload uses seed 0, got {seed}")
     dataset_dir = outdir / "normal_dataset"
@@ -169,8 +169,8 @@ def generate_normal_q8_dataset(outdir: Path, seed: int) -> tuple[np.ndarray, np.
     rng = np.random.RandomState(seed)
     a_float = rng.normal(0, 1, size=(1, 3, 32, 32))
     b_float = rng.normal(0, 1, size=(12, 3, 3, 3))
-    a_q8 = signed_wrap((a_float * (1 << 8)).astype(int), 20)[0]
-    b_q8 = signed_wrap((b_float * (1 << 8)).astype(int), 20)
+    a_q8 = signed_wrap((a_float * (1 << 8)).astype(int), 16)[0]
+    b_q8 = signed_wrap((b_float * (1 << 8)).astype(int), 16)
 
     output_float = np.zeros((12, 30, 30), dtype=np.float64)
     output = np.zeros((12, 30, 30), dtype=np.int64)
@@ -182,7 +182,7 @@ def generate_normal_q8_dataset(outdir: Path, seed: int) -> tuple[np.ndarray, np.
             output_float += np.einsum(
                 "oc,chw->ohw", b_float[:, :, kh, kw], float_patch, optimize=True
             )
-    output = signed_wrap(output, 20)
+    output = signed_wrap(output, 16)
 
     arrays = {
         "ifmap_float": a_float[0],
@@ -204,8 +204,8 @@ def generate_normal_q8_dataset(outdir: Path, seed: int) -> tuple[np.ndarray, np.
         "quantization": {
             "fractional_bits": 8,
             "operation": "truncate toward zero: (value * 2^8).astype(int)",
-            "signed_bits": 20,
-            "overflow": "two's-complement wrap modulo 2^20",
+            "signed_bits": 16,
+            "overflow": "two's-complement wrap modulo 2^16",
             "bias": "disabled; initial partial sums are zero",
         },
         "workload": {"ifmap": [3, 32, 32], "weights": [12, 3, 3, 3], "output": [12, 30, 30], "stride": 1, "padding": 0},
@@ -223,7 +223,7 @@ def generate_normal_q8_dataset(outdir: Path, seed: int) -> tuple[np.ndarray, np.
         "direct_convolution": {
             "multiplications": 9 * 30 * 30 * 3 * 12,
             "floating_golden": "unquantized convolution of the N(0, 1) tensors",
-            "quantized_golden": "Q8 integer convolution wrapped to signed 20 bits",
+            "quantized_golden": "Q8 integer convolution wrapped to signed 16 bits",
         },
     }
     (dataset_dir / "generation.json").write_text(json.dumps(generation, indent=2, sort_keys=True) + "\n")
@@ -241,7 +241,7 @@ def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, ou
     shapes = PROFILES[profile]["cases"][case]["shapes"]
     a_shape, b_shape, out_shape = shapes
     if profile.startswith("int16_"):
-        a, b, source_golden, dataset_summary = generate_normal_q8_dataset(
+        a, b, source_golden, dataset_summary = generate_normal_q8_int16_dataset(
             outdir,
             seed,
         )
