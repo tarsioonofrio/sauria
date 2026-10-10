@@ -76,6 +76,7 @@ verilator_cflags=()
 if [[ -n "${VERILATOR_CFLAGS:-}" ]]; then
     verilator_cflags+=(-CFLAGS "$VERILATOR_CFLAGS")
 fi
+VERILATOR_BUILD_DIR=${VERILATOR_BUILD_DIR:-}
 
 case_list=()
 if [[ -n "${SIM_CASES:-}" ]]; then
@@ -177,12 +178,20 @@ for case_name in "${case_list[@]}"; do
             verilator)
                 (
                     cd "$CASE_ROOT/rtl"
-                    "$VERILATOR" --binary --timing --top-module tb -Wno-fatal \
-                        --Mdir "$CASE_ROOT/rtl/obj_dir" -o sauria_asic_tb \
-                        "${verilator_cflags[@]}" \
-                        "${generic_include_args[@]}" "${generic_define_args[@]}" "${rtl_files[@]}" "$TB" \
-                        > "$SIM_LOG" 2>&1
-                    "$CASE_ROOT/rtl/obj_dir/sauria_asic_tb" "${PLUSARGS[@]}" \
+                    build_dir="$CASE_ROOT/rtl/obj_dir"
+                    if [[ -n "$VERILATOR_BUILD_DIR" ]]; then
+                        build_dir=$(mkdir -p "$VERILATOR_BUILD_DIR" && cd "$VERILATOR_BUILD_DIR" && pwd)
+                    fi
+                    if [[ ! -x "$build_dir/sauria_asic_tb" ]]; then
+                        "$VERILATOR" --binary --timing --top-module tb -Wno-fatal \
+                            --Mdir "$build_dir" -o sauria_asic_tb \
+                            "${verilator_cflags[@]}" \
+                            "${generic_include_args[@]}" "${generic_define_args[@]}" "${rtl_files[@]}" "$TB" \
+                            > "$SIM_LOG" 2>&1
+                    else
+                        echo "Reusing Verilator binary: $build_dir/sauria_asic_tb" > "$SIM_LOG"
+                    fi
+                    "$build_dir/sauria_asic_tb" "${PLUSARGS[@]}" \
                         "+ARTIFACT_DIR=$CASE_ROOT/rtl" >> "$SIM_LOG" 2>&1
                 )
                 ;;
