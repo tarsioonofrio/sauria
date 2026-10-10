@@ -19,28 +19,19 @@ The deterministic workloads are:
 | --- | --- | --- | --- | --- |
 | int16 | profile-specific active X/Y | 3x32x32 | 12x3x3x3 | 12x30x30 |
 
-The integer array workload is generated through the FastConv TCN16 normal
-simulation flow. `generate_vectors.py` runs the FastConv helper in a temporary
-copy of its configuration; that helper calls
-`fast_convolution.cli sim normal` and `fast_convolution/simulation.py` with
-seed 0, `N(0, 1)` inputs and weights, Q8 truncation, `NBITS=20`, and the TCN16
-truncated weight transform with six fractional bits. It leaves both checkouts
-untouched. The FastConv outputs, `sim.txt`, `generation.json`, and
-`metrics.json` are preserved under each vector run's `fastconv_reference/`
-directory. The metric file is produced using FastConv's own
-`scripts/dataset_metrics.py` definitions.
-
-SAURIA consumes the original quantized spatial IFMAP and weights from the
-library's `d.txt` and `g.txt`; the zero bias slots in `g.txt` are skipped. Its
-golden is the library's direct quantized convolution (`s_default_quant.txt`),
-wrapped to the accumulator width configured for that SAURIA profile. The
-FastConv approximate TCN16 result remains separately available as `s.txt` and
-is not used as SAURIA's functional golden. All array profiles use the same
-seed and layer tensors; only their packed memory layout differs. Manifests
-record the FastConv library revision, generator checksum, simulation summary,
-tensor hashes, and packed-vector hashes. The FastConv source paths can be
-overridden with `FAST_CONVOLUTION_RTL`, `FASTCONV_SYSTEMVERILOG_ROOT`, and
-`FASTCONV_PYTHON`.
+The integer tensors are generated locally by `generate_vectors.py`, using the
+same simple input-generation rules as `fast_convolution/simulation.py`:
+NumPy's seeded legacy RNG draws IFMAP first and spatial weights second from
+`N(0, 1)`, then each operand is multiplied by `2^8` and converted to integer
+(truncation toward zero). The seed is 0; Q8 operands use signed 20-bit wrap,
+and bias is disabled. The script writes float and quantized tensors, float and
+quantized direct-convolution goldens, tensor statistics, and SHA-256 hashes to
+`normal_dataset/` under each vector run. All array variants use those same
+tensors; only their packed memory layout differs. SAURIA then wraps the
+quantized golden to the accumulator width selected by the profile (16 bits in
+this campaign). The FastConv TCN16 transformed-weight approximation is not
+part of this SAURIA workload. Generation runs entirely in this repository and
+does not import or invoke FastConv at runtime.
 
 Retired 4x4 and 5x5 profile files are preserved under
 [`../../archive/experiments/asic_notebook_power/`](../../archive/experiments/asic_notebook_power/);

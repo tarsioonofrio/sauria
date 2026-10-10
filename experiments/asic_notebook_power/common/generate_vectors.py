@@ -4,15 +4,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.util
 import json
-import os
 from pathlib import Path
-import re
-import shutil
-import subprocess
 import sys
-import tempfile
 
 import numpy as np
 
@@ -163,218 +157,77 @@ def fp16_fma_convolution(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndar
     return acc.astype(np.float16)
 
 
-def fastconv_tcn16_reference(outdir: Path, seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-    """Generate the canonical TCN16 workload through fast-convolution-rtl.
-
-    The FastConv TCN16 helper invokes ``fast_convolution.cli sim normal`` and
-    ``simulation.py`` with its six-fractional-bit truncated-weight model. Run
-    it against copied config in a temporary tree so the FastConv checkout and
-    its canonical dataset are never modified.
-    """
-    lib_root = Path(os.environ.get(
-        "FAST_CONVOLUTION_RTL", "/home/tarsio/gaph/fast-convolution-rtl"
-    )).resolve()
-    fastconv_root = Path(os.environ.get(
-        "FASTCONV_SYSTEMVERILOG_ROOT", "/home/tarsio/gaph/FastConv_SystemVerilog"
-    )).resolve()
-    source_data = fastconv_root / "rtl/conv4x4/data/tcn16"
-    helper = source_data / "generate_trunc_frac8_nbits16.py"
-    config = source_data / "config"
-    dataset_tag = "sim-032-3-12-normal-trunc-frac6-nbits20"
+def generate_normal_q8_dataset(outdir: Path, seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
+    """Generate the shared FastConv-compatible N(0, 1), Q8 tensors locally."""
     if seed != 0:
-        raise ValueError(
-            f"The canonical FastConv TCN16 workload uses seed 0, got {seed}"
-        )
-    if not (lib_root / "src/fast_convolution/simulation.py").is_file():
-        raise FileNotFoundError(
-            f"fast-convolution-rtl simulation.py not found under {lib_root}; "
-            "set FAST_CONVOLUTION_RTL to its checkout"
-        )
-    if not helper.is_file() or not (config / "build.json").is_file():
-        raise FileNotFoundError(
-            f"FastConv TCN16 generator/config not found under {source_data}; "
-            "set FASTCONV_SYSTEMVERILOG_ROOT to its checkout"
-        )
-    interpreter = Path(os.environ.get(
-        "FASTCONV_PYTHON", str(lib_root / ".venv/bin/python")
-    ))
-    if not interpreter.is_file():
-        interpreter = Path(sys.executable)
+        raise ValueError(f"The shared workload uses seed 0, got {seed}")
+    dataset_dir = outdir / "normal_dataset"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(prefix="sauria-fastconv-tcn16-") as temp_name:
-        workspace = Path(temp_name)
-        temp_data = workspace / "rtl/conv4x4/data/tcn16"
-        temp_data.mkdir(parents=True)
-        shutil.copytree(config, temp_data / "config")
-        temp_helper = temp_data / helper.name
-        shutil.copy2(helper, temp_helper)
-        env = os.environ.copy()
-        library_src = str(lib_root / "src")
-        env["PYTHONPATH"] = os.pathsep.join(
-            part for part in (library_src, env.get("PYTHONPATH", "")) if part
-        )
-        env.update({
-            "NBITS": "20",
-            "WEIGHT_FRAC_BITS": "6",
-            "CHANNEL_IN": "3",
-            "CHANNEL_OUT": "12",
-            "DATASET": dataset_tag,
-        })
-        result = subprocess.run(
-            [str(interpreter), str(temp_helper)],
-            cwd=temp_data,
-            env=env,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-            timeout=300,
-        )
-        if result.returncode:
-            raise RuntimeError(
-                "FastConv TCN16 simulation generation failed "
-                f"(exit {result.returncode}):\n{result.stdout[-5000:]}"
+    # Matches simulation.cmd_sim_normal: seeded NumPy legacy RNG, IFMAP draw
+    # first, then weights; quantization multiplies by 2**8 and truncates via int.
+    rng = np.random.RandomState(seed)
+    a_float = rng.normal(0, 1, size=(1, 3, 32, 32))
+    b_float = rng.normal(0, 1, size=(12, 3, 3, 3))
+    a_q8 = signed_wrap((a_float * (1 << 8)).astype(int), 20)[0]
+    b_q8 = signed_wrap((b_float * (1 << 8)).astype(int), 20)
+
+    output_float = np.zeros((12, 30, 30), dtype=np.float64)
+    output = np.zeros((12, 30, 30), dtype=np.int64)
+    for kh in range(3):
+        for kw in range(3):
+            patch = a_q8[:, kh:kh + 30, kw:kw + 30]
+            output += np.einsum("oc,chw->ohw", b_q8[:, :, kh, kw], patch, optimize=True)
+            float_patch = a_float[0, :, kh:kh + 30, kw:kw + 30]
+            output_float += np.einsum(
+                "oc,chw->ohw", b_float[:, :, kh, kw], float_patch, optimize=True
             )
-        generated = temp_data / "sim" / dataset_tag
-        required = (
-            "d.txt", "d_default.txt", "g.txt", "g_default.txt", "s.txt",
-            "s_default.txt", "s_default_quant.txt", "s_default_quant_relu.txt",
-            "sim.txt", "pack_data.sv",
-        )
-        missing = [name for name in required if not (generated / name).is_file()]
-        if missing:
-            raise RuntimeError(f"FastConv output is missing: {', '.join(missing)}")
-        summary_text = (generated / "sim.txt").read_text()
-        r2_match = re.search(r"^R2:\s*([0-9.eE+-]+)", summary_text, re.MULTILINE)
-        library_r2 = float(r2_match.group(1)) if r2_match else None
+    output = signed_wrap(output, 20)
 
-        # The library stores flattened, quantized activation and weight tensors.
-        # The first Cout*Cin entries of g.txt are the native bias slots (zero
-        # for this workload); the remaining values are the original spatial
-        # convolution weights, not the transformed TCN16 coefficients.
-        a_values = np.loadtxt(generated / "d.txt", dtype=np.int64).reshape(3, 32, 32)
-        g_values = np.loadtxt(generated / "g.txt", dtype=np.int64).reshape(-1)
-        weight_offset = 12 * 3
-        if g_values.size != weight_offset + 12 * 3 * 3 * 3:
-            raise RuntimeError(f"Unexpected FastConv weight vector length: {g_values.size}")
-        b_values = g_values[weight_offset:].reshape(12, 3, 3, 3)
-        direct_golden = np.loadtxt(
-            generated / "s_default_quant.txt", dtype=np.int64
-        ).reshape(12, 30, 30)
+    arrays = {
+        "ifmap_float": a_float[0],
+        "weights_float": b_float,
+        "ifmap_q8": a_q8,
+        "weights_q8": b_q8,
+        "golden_float": output_float,
+        "golden_q8": output,
+    }
+    for name, values in arrays.items():
+        fmt = "%.17g" if "float" in name else "%d"
+        np.savetxt(dataset_dir / f"{name}.txt", values.reshape(-1), fmt=fmt)
 
-        reference_dir = outdir / "fastconv_reference"
-        library_revision = subprocess.run(
-            ["git", "-C", str(lib_root), "rev-parse", "HEAD"],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
-        ).stdout.strip()
-        generator_hash = hashlib.sha256(helper.read_bytes()).hexdigest()
-        generation = {
-            "generator": {
-                "project": "fast-convolution-rtl",
-                "revision": library_revision or None,
-                "module": "fast_convolution/simulation.py",
-                "simulation_sha256": hashlib.sha256(
-                    (lib_root / "src/fast_convolution/simulation.py").read_bytes()
-                ).hexdigest(),
-                "cli_sha256": hashlib.sha256(
-                    (lib_root / "src/fast_convolution/cli.py").read_bytes()
-                ).hexdigest(),
-                "method": "cli sim normal; TCN16 truncated transform with WEIGHT_FRAC_BITS=6",
-                "helper": helper.as_posix(),
-                "helper_sha256": generator_hash,
-                "config_sha256": {
-                    name: hashlib.sha256((config / name).read_bytes()).hexdigest()
-                    for name in ("init.json", "build.json", "quant.json")
-                },
-            },
-            "workload": {
-                "image_side": 32,
-                "channel_in": 3,
-                "channel_out": 12,
-                "kernel_size": 3,
-                "seed": seed,
-                "nbits": 20,
-                "quant_bits": 8,
-                "weight_transform_scale": 576,
-                "weight_transform_frac_bits": 6,
-                "truncated_weight_transform": True,
-                "bias_enabled": False,
-            },
-            "artifacts": {
-                "library_r2": library_r2,
-                "pack_data_sha256": hashlib.sha256(
-                    (generated / "pack_data.sv").read_bytes()
-                ).hexdigest(),
-            },
-            "library_simulation_summary": summary_text,
-            "artifacts_sha256": {
-                name: hashlib.sha256((generated / name).read_bytes()).hexdigest()
-                for name in required
-            },
-        }
-        (generated / "generation.json").write_text(
-            json.dumps(generation, indent=2, sort_keys=True) + "\n"
-        )
-        (generated / "README.md").write_text(
-            "# FastConv normal workload reference\n\n"
-            "Generated in an isolated temporary checkout by the FastConv TCN16 "
-            "normal-distribution flow, which calls `fast_convolution.cli` and "
-            "`fast_convolution/simulation.py`. See `generation.json`, "
-            "`sim.txt`, and `metrics.json` for provenance and simulation metrics.\n"
-        )
-
-        # Reuse FastConv's own metric definitions and JSON schema on the output
-        # produced by the same library invocation.
-        metrics_script = fastconv_root / "scripts/dataset_metrics.py"
-        if metrics_script.is_file():
-            spec = importlib.util.spec_from_file_location(
-                "fastconv_dataset_metrics", metrics_script
-            )
-            if spec is None or spec.loader is None:
-                raise RuntimeError(f"Cannot load FastConv metrics script {metrics_script}")
-            metrics_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(metrics_module)
-            metrics_module.collect_dataset_metrics(
-                root=workspace,
-                include_datasets=[f"rtl/conv4x4/data/tcn16/sim/{dataset_tag}"],
-            )
-            if not (generated / "metrics.json").is_file():
-                raise RuntimeError("FastConv metrics generator did not create metrics.json")
-        else:
-            raise FileNotFoundError(f"FastConv metrics script not found: {metrics_script}")
-
-        summary = {
-            "r2_library": library_r2,
-            "text": summary_text,
-            "dataset_tag": dataset_tag,
-            "generator_revision": library_revision or None,
-            "generator_helper_sha256": generator_hash,
-            "artifact_dir": "fastconv_reference",
-            "artifact_sha256": {
-                path.relative_to(generated).as_posix(): hashlib.sha256(
-                    path.read_bytes()
-                ).hexdigest()
-                for path in sorted(generated.rglob("*"))
-                if path.is_file()
-            },
-        }
-        outdir.mkdir(parents=True, exist_ok=True)
-        if reference_dir.exists():
-            for source_file in generated.rglob("*"):
-                if not source_file.is_file():
-                    continue
-                relative = source_file.relative_to(generated)
-                target_file = reference_dir / relative
-                if not target_file.is_file() or hashlib.sha256(
-                    target_file.read_bytes()
-                ).digest() != hashlib.sha256(source_file.read_bytes()).digest():
-                    raise FileExistsError(
-                        f"Existing FastConv reference differs at {target_file}; "
-                        "use a new run directory to preserve both versions"
-                    )
-        else:
-            shutil.copytree(generated, reference_dir)
-    return a_values, b_values, direct_golden, summary
+    generation = {
+        "generator": "internal NumPy implementation matching FastConv normal input generation",
+        "rng": "numpy.random legacy MT19937 via np.random.seed",
+        "seed": seed,
+        "distribution": {"name": "normal", "mean": 0, "standard_deviation": 1},
+        "quantization": {
+            "fractional_bits": 8,
+            "operation": "truncate toward zero: (value * 2^8).astype(int)",
+            "signed_bits": 20,
+            "overflow": "two's-complement wrap modulo 2^20",
+            "bias": "disabled; initial partial sums are zero",
+        },
+        "workload": {"ifmap": [3, 32, 32], "weights": [12, 3, 3, 3], "output": [12, 30, 30], "stride": 1, "padding": 0},
+        "arrays": {
+            name: {
+                "shape": list(values.shape),
+                "min": float(values.min()) if np.issubdtype(values.dtype, np.floating) else int(values.min()),
+                "max": float(values.max()) if np.issubdtype(values.dtype, np.floating) else int(values.max()),
+                "mean": float(values.mean()),
+                "standard_deviation": float(values.std()),
+                "sha256": tensor_sha256(values),
+            }
+            for name, values in arrays.items()
+        },
+        "direct_convolution": {
+            "multiplications": 9 * 30 * 30 * 3 * 12,
+            "floating_golden": "unquantized convolution of the N(0, 1) tensors",
+            "quantized_golden": "Q8 integer convolution wrapped to signed 20 bits",
+        },
+    }
+    (dataset_dir / "generation.json").write_text(json.dumps(generation, indent=2, sort_keys=True) + "\n")
+    return a_q8, b_q8, output, {"dataset_dir": "normal_dataset", "generator": "internal-normal-q8", "generation": generation}
 
 
 def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, outdir: Path):
@@ -388,13 +241,13 @@ def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, ou
     shapes = PROFILES[profile]["cases"][case]["shapes"]
     a_shape, b_shape, out_shape = shapes
     if profile.startswith("int16_"):
-        a, b, library_golden, fastconv_summary = fastconv_tcn16_reference(
+        a, b, source_golden, dataset_summary = generate_normal_q8_dataset(
             outdir,
             seed,
         )
         if a.shape != tuple(a_shape) or b.shape != tuple(b_shape):
             raise RuntimeError(
-                f"FastConv workload shape mismatch: A={a.shape}, B={b.shape}; "
+                f"Generated workload shape mismatch: A={a.shape}, B={b.shape}; "
                 f"expected A={a_shape}, B={b_shape}"
             )
     else:
@@ -403,10 +256,8 @@ def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, ou
         b = rng.integers(-127, 127, size=b_shape, dtype=np.int16).astype(np.int8)
     c = np.zeros(out_shape, dtype=np.int64)
     if profile.startswith("int16_"):
-        # SAURIA's golden is the library's standard quantized convolution
-        # reference wrapped to the configured accumulator width. The separate
-        # `fastconv_reference/s.txt` retains the approximate TCN16 result.
-        out = library_golden
+        # Use the same quantized spatial tensors and direct convolution golden.
+        out = source_golden
     elif case.startswith("conv"):
         c[:, :, :] = rng.integers(-127, 127, size=(out_shape[0], 1, 1), dtype=np.int16)
         out = c.copy()
@@ -423,7 +274,7 @@ def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, ou
         if profile.startswith("int16_")
         else "direct integer convolution/GEMM with signed accumulator wrap"
     )
-    return a, b, c, out, golden_model, fastconv_summary if profile.startswith("int16_") else None
+    return a, b, c, out, golden_model, dataset_summary if profile.startswith("int16_") else None
 
 
 def encoded(values: np.ndarray, bits: int, floating: bool, mantissa: int) -> np.ndarray:
@@ -482,7 +333,7 @@ def main() -> int:
     tiling = dict(case_spec["tiling"])
     conv = sauria_lib.get_conv_dict(shapes, tiling, hopts, preloads=True, d=1, s=1, p=0)
     vector_source = "generated"
-    fastconv_summary = None
+    dataset_summary = None
     seed = case_spec["seed"]
     if args.input_npz:
         with np.load(args.input_npz, allow_pickle=False) as tensors:
@@ -502,7 +353,7 @@ def main() -> int:
         golden_model = "caller-provided full-precision integer convolution output"
         vector_source = str(args.input_npz.resolve())
     else:
-        a, b, c, output, golden_model, fastconv_summary = case_tensors(
+        a, b, c, output, golden_model, dataset_summary = case_tensors(
             args.profile, args.case, hopts, conv, seed, outdir
         )
     if tuple(output.shape) != tuple(shapes[2]):
@@ -589,7 +440,7 @@ def main() -> int:
             "start_policy": "one layer start; controller schedules all tiles",
         },
         "golden_model": golden_model,
-        "fastconv_reference": fastconv_summary,
+        "dataset_generation": dataset_summary,
         "tensor_sha256": {
             "ifmap": tensor_sha256(a),
             "weights": tensor_sha256(b),
