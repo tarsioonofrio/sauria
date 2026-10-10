@@ -257,7 +257,7 @@ def generate_random_count_only_tensors(a_shape: tuple[int, ...], b_shape: tuple[
     return a, b, output, summary
 
 
-def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, outdir: Path, count_only: bool = False):
+def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, outdir: Path, count_only: bool = False, shapes_override=None):
     if profile == "fp16_8x16":
         rng = np.random.default_rng(seed)
         np.random.seed(seed)
@@ -265,7 +265,7 @@ def case_tensors(profile: str, case: str, hopts: dict, conv: dict, seed: int, ou
         output = fp16_fma_convolution(a, b, c)
         return a, b, c, output, "FP16 fused multiply-add with rounding after each MAC", None
 
-    shapes = PROFILES[profile]["cases"][case]["shapes"]
+    shapes = shapes_override or PROFILES[profile]["cases"][case]["shapes"]
     a_shape, b_shape, out_shape = shapes
     if profile.startswith("int16_"):
         if count_only:
@@ -408,7 +408,8 @@ def main() -> int:
         vector_source = str(args.input_npz.resolve())
     else:
         a, b, c, output, golden_model, dataset_summary = case_tensors(
-            args.profile, args.case, hopts, conv, seed, outdir, count_only=args.count_only
+            args.profile, args.case, hopts, conv, seed, outdir,
+            count_only=args.count_only, shapes_override=shapes,
         )
     if tuple(output.shape) != tuple(shapes[2]):
         raise RuntimeError(f"model output shape {output.shape} does not match requested {shapes[2]}")
