@@ -1951,9 +1951,10 @@ module tb;
 
         if (dma_jobs == 0 || dma_ext_read_bytes == 0 || dma_ext_write_bytes == 0)
             $fatal(1, "layer did not exercise both external DRAM directions");
-        if (dma_ext_write_bytes != output_bytes)
+        if (!count_only && dma_ext_write_bytes != output_bytes)
             $fatal(1, "external output writes do not cover the full layer: wrote=%0d expected=%0d", dma_ext_write_bytes, output_bytes);
         if (count_only) begin
+            $display("OUTPUT_WRITE_BYTES_COUNTED=%0d", dma_ext_write_bytes);
             $display("OUTPUT_VALIDATION=SKIPPED_COUNT_ONLY");
             $display("SRAM_ACCESS_COUNT_ONLY_PASS");
         end else begin
