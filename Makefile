@@ -20,9 +20,7 @@ ifeq ($(PROFILE),int16_2x2)
 DEFAULT_CASE = conv-x2-y2
 else ifeq ($(PROFILE),int16_3x3)
 DEFAULT_CASE = conv-x3-y3
-else ifeq ($(PROFILE),int16_4x4)
-DEFAULT_CASE = conv-x4-y3
-else ifeq ($(PROFILE),int16_5x5)
+else ifeq ($(PROFILE),int16_4x5)
 DEFAULT_CASE = conv-x4-y5
 else ifeq ($(PROFILE),int16_6x6)
 DEFAULT_CASE = conv-x6-y6
@@ -55,8 +53,8 @@ list-profiles:
 	@find experiments/asic_notebook_power -mindepth 1 -maxdepth 1 -type d -name 'int16_*' -printf '%f\n' | sort
 
 require-profile:
-	@case "$(PROFILE)" in int16_2x2|int16_3x3|int16_4x4|int16_5x5|int16_6x6) ;; \
-	  *) echo 'PROFILE must be one of int16_2x2, int16_3x3, int16_4x4, int16_5x5, or int16_6x6.' >&2; exit 2 ;; esac
+	@case "$(PROFILE)" in int16_2x2|int16_3x3|int16_4x5|int16_6x6) ;; \
+	  *) echo 'PROFILE must be one of int16_2x2, int16_3x3, int16_4x5, or int16_6x6.' >&2; exit 2 ;; esac
 	@test -d "$(PROFILE_ROOT)" || { echo 'Profile not found: $(PROFILE_ROOT)' >&2; exit 2; }
 	@test -n "$(SELECTED_CASE)" || { echo 'CASE is not defined for PROFILE=$(PROFILE).' >&2; exit 2; }
 

@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-PROFILE=${1:?usage: run_campaign.sh int16_2x2|int16_3x3|int16_4x4|int16_5x5|int16_6x6}
+PROFILE=${1:?usage: run_campaign.sh int16_2x2|int16_3x3|int16_4x5|int16_6x6}
 SAURIA_TIMING_SCOPE=${SAURIA_TIMING_SCOPE:-accelerator_internal}
 export SAURIA_TIMING_SCOPE
 case "$PROFILE" in
     int16_2x2) CASES=(conv-x2-y2) ;;
     int16_3x3) CASES=(conv-x3-y3) ;;
-    int16_4x4) CASES=(conv-x4-y3) ;;
-    int16_5x5) CASES=(conv-x4-y5) ;;
+    int16_4x5) CASES=(conv-x4-y5) ;;
     int16_6x6) CASES=(conv-x6-y6) ;;
     *) echo "Unknown profile: $PROFILE" >&2; exit 2 ;;
 esac
@@ -17,7 +16,7 @@ if [[ -n "${SIM_CASES:-}" ]]; then
     ((${#CASES[@]} > 0)) || { echo "SIM_CASES must name at least one workload" >&2; exit 2; }
     for case_name in "${CASES[@]}"; do
         case "$PROFILE:$case_name" in
-            int16_2x2:conv-x2-y2|int16_3x3:conv-x3-y3|int16_4x4:conv-x4-y3|int16_5x5:conv-x4-y5|int16_6x6:conv-x6-y6) ;;
+            int16_2x2:conv-x2-y2|int16_3x3:conv-x3-y3|int16_4x5:conv-x4-y5|int16_6x6:conv-x6-y6) ;;
             *) echo "Unknown workload for $PROFILE: $case_name" >&2; exit 2 ;;
         esac
     done

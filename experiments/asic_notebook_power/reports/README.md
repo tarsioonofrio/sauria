@@ -3,9 +3,10 @@
 This directory contains durable, consolidated reports for the INT16 array
 campaign. Reports with different source revisions or measurement scopes stay
 separate. Detailed artifacts for individual runs (logs, netlists, waveforms,
-and tool reports) are kept under the corresponding profile directories, such
-as `int16_4x4/logical/results/<run_id>/`, `int16_4x4/sim/run_artifacts/`,
-`int16_4x4/power/results/`, and `int16_4x4/run_metadata/`.
+and tool reports) are kept under the corresponding active profile directory.
+The former square `int16_4x4` and `int16_5x5` profile definitions are archived
+under `archive/experiments/asic_notebook_power/`; their existing rows below
+remain historical measurements, not results for the new `int16_4x5` array.
 
 ## Current table
 

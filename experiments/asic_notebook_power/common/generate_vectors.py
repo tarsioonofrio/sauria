@@ -66,19 +66,15 @@ PROFILES = {
 INT16_ARRAY_TILING = {
     # x_used spans output-channel lanes, while y_used spans output-width lanes.
     # k_tile is chosen so it divides Cout=12 and is divisible by x_used.
-    # 4x4 and 5x5 cannot fill every PE with this workload: Cout=12 does not
-    # admit an x tile of 5, and output width 30 does not admit a y tile of 4.
     2: (2, 2, 6),
     3: (3, 3, 3),
-    4: (4, 3, 12),
-    5: (4, 5, 12),
     6: (6, 6, 12),
     # Keep the unsupported-by-campaign larger profiles at their prior tiling.
     7: (3, 6, 3),
     8: (3, 6, 3),
 }
 
-for array_size in (2, 3, 4, 5, 6, 7, 8):
+for array_size in (2, 3, 6, 7, 8):
     x_used, y_used, k_tile = INT16_ARRAY_TILING[array_size]
     case_name = f"conv-x{x_used}-y{y_used}"
     PROFILES[f"int16_{array_size}x{array_size}"] = {
@@ -102,6 +98,25 @@ for array_size in (2, 3, 4, 5, 6, 7, 8):
             },
         },
     }
+
+# Rectangular array: X spans output-channel lanes and Y output-width lanes.
+PROFILES["int16_4x5"] = {
+    "version": "int16_4x5",
+    "memory_depths": (2048, 2048, 1024),
+    "lanes": (4, 5, 5),
+    "cases": {
+        "conv-x4-y5": {
+            "shapes": ([3, 32, 32], [12, 3, 3, 3], [12, 30, 30]),
+            "tiling": {
+                "C_tile_shape": [12, 10, 30],
+                "tile_cin": 3,
+                "X_used": 4,
+                "Y_used": 5,
+            },
+            "seed": 20261004,
+        },
+    },
+}
 
 
 def update_memory_depths(hopts: dict, depths: tuple[int, int, int]) -> None:

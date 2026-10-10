@@ -1,1 +1,0 @@
-experiments/asic_notebook_power/common/tb.sv

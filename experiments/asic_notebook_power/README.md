@@ -5,7 +5,7 @@ and power results for the active array profiles:
 
 | Profile | SA dimensions | Arithmetic | Local SRAM depths (A/B/C) |
 | --- | --- | --- | --- |
-| `int16_NxN` | X=Y=2, 3, 4, 5, or 6 | signed 16-bit operands/partial sums | 2048 / 2048 / 1024 words |
+| `int16_NxN` / `int16_4x5` | 2x2, 3x3, 4x5, or 6x6 | signed 16-bit operands/partial sums | 2048 / 2048 / 1024 words |
 
 Both target TSMC 28 nm Genus/Xcelium/Joules at 500 MHz (2 ns). The campaign
 sequence is full-layer RTL golden simulation, logical synthesis, gate-level
@@ -17,7 +17,7 @@ The deterministic workloads are:
 
 | Profile | Case | Input | Weights | Output |
 | --- | --- | --- | --- | --- |
-| int16 | profile-specific active X/Y | 3x32x32 | 3x3x3x3 | 3x30x30 |
+| int16 | profile-specific active X/Y | 3x32x32 | 12x3x3x3 | 12x30x30 |
 
 The INT16 array sweep now follows the FastConv `cmd_sim_normal` tensor
 generation contract: seeded `N(0, 1)` IFMAP and weights, scaled by `2^8` and
@@ -27,7 +27,9 @@ disabled and initial partial sums are zero. All five array profiles use the
 same seed and layer tensors; only their packed memory layout differs. The
 vector manifests record the seed, quantization contract, and SHA-256 hashes.
 Expected outputs use an independent direct NumPy convolution and signed 16-bit
-accumulator wrap.
+accumulator wrap. Retired 4x4 and 5x5 profile files are preserved under
+[`../../archive/experiments/asic_notebook_power/`](../../archive/experiments/asic_notebook_power/);
+their historical reports do not represent the new 4x5 array.
 
 ## Power boundary and limitations
 
@@ -173,21 +175,21 @@ for every array. The 2026-10-09 five-array reports capture the earlier tiling
 |---|---:|---:|---:|---:|
 | 2x2 | 2 | 2 | `[6,10,30]` | 4/4 |
 | 3x3 | 3 | 3 | `[3,10,30]` | 9/9 |
-| 4x4 | 4 | 3 | `[12,10,30]` | 12/16 |
-| 5x5 | 4 | 5 | `[12,10,30]` | 20/25 |
+| 4x5 | 4 | 5 | `[12,10,30]` | 20/20 |
 | 6x6 | 6 | 6 | `[12,10,30]` | 36/36 |
 
 `X_used` maps output-channel lanes and `Y_used` maps output-width lanes.
-The 2x2 profile uses a 6-channel X tile; 3x3 keeps a 3-channel tile, and the
-4x4 through 6x6 profiles use a 12-channel tile, within each profile's C-SRAM
-capacity. With output width 30, the 4x4 array cannot use `Y_used=4`; with
-`Cout=12`, the 5x5 array cannot use `X_used=5`. Retiled 2x2, 4x4, and 5x5
-completed RTL, Genus, gate-level, and Joules on commit `316013f`; 6x6 completed
-on `0f3f66c`. Their PPA and synthesis reports are linked from
+The 2x2 profile uses a 6-channel X tile; 3x3 keeps a 3-channel tile; and 4x5
+and 6x6 use a 12-channel tile, within each profile's C-SRAM capacity. The
+4x5 physical array maps X=4 output-channel lanes and Y=5 output-width lanes,
+so all 20 multipliers can be used by this workload. The earlier square 4x4
+and 5x5 profile files were archived. Retiled 2x2, 4x4, and 5x5 completed RTL,
+Genus, gate-level, and Joules on commit `316013f`; 6x6 completed on `0f3f66c`.
+Those historical reports are linked from
 [`reports/README.md`](reports/README.md). The 3x3 mapping remains `X_used=3`,
 `Y_used=3` and already has a complete result from the five-array campaign.
-Each flow writes results into its own `int16_NxN` directory and immutable
-run-id paths.
+The new 4x5 result must be recorded separately after its flow completes. Each
+active flow writes to its profile directory and immutable run-id paths.
 
 For example, the retiled 6x6 signed INT16 case uses `X_used=6`, `Y_used=6`, and
 a 2 ns clock:

@@ -96,9 +96,9 @@ def get_params(version):
         HOPTS["add_type"] =            4
         HOPTS["A"] =                   16
 
-    elif version in {"int16_2x2", "int16_3x3", "int16_4x4", "int16_5x5", "int16_6x6", "int16_7x7", "int16_8x8"}:
+    elif version in {"int16_2x2", "int16_3x3", "int16_4x4", "int16_4x5", "int16_5x5", "int16_6x6", "int16_7x7", "int16_8x8"}:
 
-        array_size = int(version.split("_")[1].split("x")[0])
+        array_x, array_y = map(int, version.split("_")[1].split("x"))
         operand_width = 16
         output_width = 16
 
@@ -115,8 +115,8 @@ def get_params(version):
 
         # Systolic Array HW parameters
         # *******************************************
-        HOPTS["X"] =                   array_size  # SA X size
-        HOPTS["Y"] =                   array_size  # SA Y size
+        HOPTS["X"] =                   array_x  # SA X size
+        HOPTS["Y"] =                   array_y  # SA Y size
         HOPTS["DILP_W"] =              64      # Dilation parameter width
         HOPTS["PARAMS_W"] =            8       # General parameters width
         HOPTS["TH_W"] =                2       # Negligence threshold width
