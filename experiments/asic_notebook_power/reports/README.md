@@ -122,3 +122,21 @@ for its CSV; consult per-run artifacts for tool output. The synthesis CSV
 distinguishes local SRAM A (IFMAP) and B (weights) read lanes from active feeder
 lanes and external AXI width. The local word counts are port widths if both
 banks return data on the same cycle, not measured sustained traffic.
+
+## Count-only 6x6 channel sweep
+
+`sram_access_counts_6x6_channels_32_to_512_20261010.csv` records Verilator
+5.052 runs for Cin=Cout=32, 64, 128, 256, and 512 on an IFMAP with spatial
+size 32x32, 3x3 kernel, stride 1, and no padding (30x30 output). The physical
+array is 6x6 with `X_used=4`, `Y_used=6` (24 active PEs). Inputs and weights
+were seeded normal random Q8 values represented in signed 16-bit words. The
+runs count SRAM bank-word accesses; output values were not compared with a
+golden reference. `SRAM_ACCESS_COUNT_ONLY_PASS` means the layer reached
+`layer_done`, generated external read/write traffic, and emitted the SRAM
+counters; it is not a functional correctness result.
+
+The report includes per-run cycles, wall time, DMA jobs, tensor hashes, and
+separate A/B/C read/write counts. Detailed vectors and logs are retained on the
+Paxos under `/sim/tarsio/sauria/experiments/asic_notebook_power/int16_6x6/sim/run_artifacts/`
+using the listed run IDs. The matching campaign log directory is
+`/sim/tarsio/reports-sram-count-6x6-20261010-4f3e1a3/`.
