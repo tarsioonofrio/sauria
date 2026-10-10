@@ -103,6 +103,15 @@ module tb;
     integer initial_output_mismatches;
     integer dma_service_cycles = 0;
     integer layer_cycles = 0;
+    // Physical SRAM bank transactions during the measured layer window.
+    // Each of A/B/C has two banks, so simultaneous accesses to both banks
+    // count as two word transactions for that logical SRAM.
+    integer srama_read_count = 0;
+    integer srama_write_count = 0;
+    integer sramb_read_count = 0;
+    integer sramb_write_count = 0;
+    integer sramc_read_count = 0;
+    integer sramc_write_count = 0;
     integer errors = 0;
     integer fd;
     integer psm_trace_fd = 0;
@@ -354,6 +363,38 @@ module tb;
     always @(negedge clk) begin
         if (measure_active) sram_trace_cycle = sram_trace_cycle + 1;
         else sram_trace_cycle = 0;
+    end
+
+    // Count committed physical bank operations, including host/DMA and
+    // accelerator traffic. A bank operation is accepted when its chip enable
+    // is active; rdwen distinguishes reads (high) from writes (low).
+    always @(posedge clk) begin
+        if (measure_active) begin
+            if (!dut.sram_top_i.SRAMA_i.cen_0) begin
+                if (!dut.sram_top_i.SRAMA_i.rdwen_0) srama_write_count = srama_write_count + 1;
+                else srama_read_count = srama_read_count + 1;
+            end
+            if (!dut.sram_top_i.SRAMA_i.cen_1) begin
+                if (!dut.sram_top_i.SRAMA_i.rdwen_1) srama_write_count = srama_write_count + 1;
+                else srama_read_count = srama_read_count + 1;
+            end
+            if (!dut.sram_top_i.SRAMB_i.cen_0) begin
+                if (!dut.sram_top_i.SRAMB_i.rdwen_0) sramb_write_count = sramb_write_count + 1;
+                else sramb_read_count = sramb_read_count + 1;
+            end
+            if (!dut.sram_top_i.SRAMB_i.cen_1) begin
+                if (!dut.sram_top_i.SRAMB_i.rdwen_1) sramb_write_count = sramb_write_count + 1;
+                else sramb_read_count = sramb_read_count + 1;
+            end
+            if (!dut.sram_top_i.SRAMC_i.cen_0) begin
+                if (!dut.sram_top_i.SRAMC_i.rdwen_0) sramc_write_count = sramc_write_count + 1;
+                else sramc_read_count = sramc_read_count + 1;
+            end
+            if (!dut.sram_top_i.SRAMC_i.cen_1) begin
+                if (!dut.sram_top_i.SRAMC_i.rdwen_1) sramc_write_count = sramc_write_count + 1;
+                else sramc_read_count = sramc_read_count + 1;
+            end
+        end
     end
 
     // Record physical host/accelerator SRAM writes as they commit. This is
@@ -1730,6 +1771,12 @@ module tb;
         repeat (4) @(posedge clk);
         layer_cycles = 0;
         sram_trace_cycle = 0;
+        srama_read_count = 0;
+        srama_write_count = 0;
+        sramb_read_count = 0;
+        sramb_write_count = 0;
+        sramc_read_count = 0;
+        sramc_write_count = 0;
         ifmap_stage_trace_id = 0;
         ifmap_stage_tail = 0;
         measure_active = 1'b1;
@@ -1884,6 +1931,19 @@ module tb;
         $display("DRAM_WRITE_BYTES=%0d", dma_ext_write_bytes);
         $display("DRAM_SERVICE_CYCLES=%0d", dma_service_cycles);
         $display("DRAM_TOTAL_BYTES=%0d", dma_ext_read_bytes + dma_ext_write_bytes);
+        $display("SRAM_A_READS=%0d", srama_read_count);
+        $display("SRAM_A_WRITES=%0d", srama_write_count);
+        $display("SRAM_B_READS=%0d", sramb_read_count);
+        $display("SRAM_B_WRITES=%0d", sramb_write_count);
+        $display("SRAM_C_READS=%0d", sramc_read_count);
+        $display("SRAM_C_WRITES=%0d", sramc_write_count);
+        fd = $fopen({artifact_dir, "/sram_access_counts.csv"}, "w");
+        if (fd == 0) $fatal(1, "cannot create SRAM access count report");
+        $fdisplay(fd, "sram,reads,writes,physical_bank_word_accesses");
+        $fdisplay(fd, "A,%0d,%0d,%0d", srama_read_count, srama_write_count, srama_read_count + srama_write_count);
+        $fdisplay(fd, "B,%0d,%0d,%0d", sramb_read_count, sramb_write_count, sramb_read_count + sramb_write_count);
+        $fdisplay(fd, "C,%0d,%0d,%0d", sramc_read_count, sramc_write_count, sramc_read_count + sramc_write_count);
+        $fclose(fd);
 
         errors = 0;
         checksum = 32'h811c9dc5;
