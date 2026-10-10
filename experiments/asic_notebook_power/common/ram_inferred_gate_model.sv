@@ -36,9 +36,9 @@ package sauria_gate_ram_math;
 endpackage
 
 module ram_inferred #(
-    parameter integer SRAM_W = sauria_gate_ram_math::lcm(128, 16*`X),
+    parameter integer SRAM_W = sauria_gate_ram_math::lcm(128, 16*`Y),
     parameter integer ADR_W = sauria_gate_ram_math::clog2(
-        (2048 + (SRAM_W/(16*`X)) - 1) / (SRAM_W/(16*`X)))
+        (2048 + (SRAM_W/(16*`Y)) - 1) / (SRAM_W/(16*`Y)))
 )(
     input  logic                 i_clk,
     input  logic                 i_rstn,
@@ -68,7 +68,7 @@ endmodule
 module ram_inferred_0 #(
     parameter integer SRAM_W = sauria_gate_ram_math::lcm(128, 16*`X),
     parameter integer ADR_W = sauria_gate_ram_math::clog2(
-        (1024 + (SRAM_W/(16*`X)) - 1) / (SRAM_W/(16*`X)))
+        (2048 + (SRAM_W/(16*`X)) - 1) / (SRAM_W/(16*`X)))
 )(
     input  logic                 i_clk,
     input  logic                 i_rstn,
