@@ -19,15 +19,30 @@ The deterministic workloads are:
 | --- | --- | --- | --- | --- |
 | int16 | profile-specific active X/Y | 3x32x32 | 12x3x3x3 | 12x30x30 |
 
-The INT16 array sweep now follows the FastConv `cmd_sim_normal` tensor
-generation contract: seeded `N(0, 1)` IFMAP and weights, scaled by `2^8` and
-truncated toward zero to represent eight fractional bits. These are signed
-16-bit operands with wraparound, not saturated signed INT8 values. Bias is
-disabled and initial partial sums are zero. All active array profiles use the
-same seed and layer tensors; only their packed memory layout differs. The
-vector manifests record the seed, quantization contract, and SHA-256 hashes.
-Expected outputs use an independent direct NumPy convolution and signed 16-bit
-accumulator wrap. Retired 4x4 and 5x5 profile files are preserved under
+The integer array workload is generated through the FastConv TCN16 normal
+simulation flow. `generate_vectors.py` runs the FastConv helper in a temporary
+copy of its configuration; that helper calls
+`fast_convolution.cli sim normal` and `fast_convolution/simulation.py` with
+seed 0, `N(0, 1)` inputs and weights, Q8 truncation, `NBITS=20`, and the TCN16
+truncated weight transform with six fractional bits. It leaves both checkouts
+untouched. The FastConv outputs, `sim.txt`, `generation.json`, and
+`metrics.json` are preserved under each vector run's `fastconv_reference/`
+directory. The metric file is produced using FastConv's own
+`scripts/dataset_metrics.py` definitions.
+
+SAURIA consumes the original quantized spatial IFMAP and weights from the
+library's `d.txt` and `g.txt`; the zero bias slots in `g.txt` are skipped. Its
+golden is the library's direct quantized convolution (`s_default_quant.txt`),
+wrapped to the accumulator width configured for that SAURIA profile. The
+FastConv approximate TCN16 result remains separately available as `s.txt` and
+is not used as SAURIA's functional golden. All array profiles use the same
+seed and layer tensors; only their packed memory layout differs. Manifests
+record the FastConv library revision, generator checksum, simulation summary,
+tensor hashes, and packed-vector hashes. The FastConv source paths can be
+overridden with `FAST_CONVOLUTION_RTL`, `FASTCONV_SYSTEMVERILOG_ROOT`, and
+`FASTCONV_PYTHON`.
+
+Retired 4x4 and 5x5 profile files are preserved under
 [`../../archive/experiments/asic_notebook_power/`](../../archive/experiments/asic_notebook_power/);
 their historical reports do not represent the new 4x5 array.
 
