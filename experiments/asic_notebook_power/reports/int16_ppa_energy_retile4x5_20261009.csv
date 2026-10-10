@@ -1,0 +1,2 @@
+cin,cout,array,x_used,y_used,active_pes,standard_cell_area_um2,layer_cycles,clock_period_ns,estimated_layer_time_us,wns_ps,timing_met_500mhz,power_mw,estimated_energy_uj,sram_power_included,output_checksum,run_id,source_commit
+3,12,4x5,4,5,20,50212.134,28066,2,56.132,0.0,true,15.94390,0.894963,false,015f2e08,retile-4x5-500mhz-20261009-a1431f6,a1431f6fa9d604678c455d8fd68030fc3730a30a

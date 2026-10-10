@@ -1,0 +1,73 @@
+{
+  "campaign_date": "2026-10-09",
+  "campaign_end": "2026-10-09T21:43:33-03:00",
+  "source_commit": "a1431f6fa9d604678c455d8fd68030fc3730a30a",
+  "gate_sim_model_commit": "636c69a11c0d5958943dc90959fe2d2618517982",
+  "run_id": "retile-4x5-500mhz-20261009-a1431f6",
+  "profile": "int16_4x5",
+  "case": "conv-x4-y5",
+  "technology": "TSMC28",
+  "genus_version": "21.12-s068_1",
+  "xcelium_version": "23.03",
+  "target_frequency_mhz": 500,
+  "clock_period_ns": 2.0,
+  "timing_scope": "accelerator_internal",
+  "external_shared_bandwidth_bits_per_cycle": 128,
+  "sram_power_included": false,
+  "workload": {
+    "ifmap": [3, 32, 32],
+    "weights": [12, 3, 3, 3],
+    "ofmap": [12, 30, 30],
+    "cin": 3,
+    "cout": 12,
+    "kernel": [3, 3],
+    "stride": 1,
+    "padding": 0,
+    "operand_bits": 16,
+    "accumulator_bits": 16,
+    "seed": 20261004,
+    "distribution": "normal(0,1), scaled by 2^8, truncated toward zero, signed wrap",
+    "ifmap_sha256": "ed8cc8e1d630bcda662d5943dd8db49b804f9f94b2758e02fd63dd06cf6cfe7d",
+    "weights_sha256": "4bac62b127b2365860464998e1c9c00891184909470bed5aca73f63b1a55dccf",
+    "output_checksum": "015f2e08"
+  },
+  "simulation": {
+    "rtl_exit_code": 0,
+    "gate_exit_code": 0,
+    "layer_cycles": 28066,
+    "dram_service_cycles": 15585,
+    "ifmap_read_bytes": 6912,
+    "weight_read_bytes": 648,
+    "psum_read_bytes": 21600,
+    "dram_write_bytes": 21600,
+    "external_bytes_per_layer": 50760,
+    "outputs_checked": 10800,
+    "output_bytes_checked": 21600,
+    "output_checksum": "015f2e08",
+    "rtl_artifact": "/sim/tarsio/sauria/experiments/asic_notebook_power/int16_4x5/sim/run_artifacts/retile-4x5-500mhz-20261009-a1431f6/conv-x4-y5/rtl-xrun.log",
+    "gate_artifact": "/sim/tarsio/sauria/experiments/asic_notebook_power/int16_4x5/sim/run_artifacts/retile-4x5-500mhz-20261009-a1431f6/conv-x4-y5/gate-xrun.log"
+  },
+  "results": [
+    {
+      "array": "4x5",
+      "x_used": 4,
+      "y_used": 5,
+      "standard_cell_area_um2": 50212.134,
+      "cell_count": 45429,
+      "layer_cycles": 28066,
+      "wns_ps": 0,
+      "power_mw": 15.9439,
+      "output_checksum": "015f2e08",
+      "run_id": "retile-4x5-500mhz-20261009-a1431f6",
+      "source_commit": "a1431f6fa9d604678c455d8fd68030fc3730a30a",
+      "power_report_path": "/sim/tarsio/sauria/experiments/asic_notebook_power/int16_4x5/power/results/retile-4x5-500mhz-20261009-a1431f6/conv-x4-y5/power_evaluation.txt"
+    }
+  ],
+  "notes": [
+    "RTL and SDF gate simulations passed all 10,800 outputs with checksum 015f2e08; the gate RAM models for the rectangular X=4, Y=5 banking were corrected in gate_sim_model_commit.",
+    "The synthesis netlist was generated from source_commit; gate_sim_model_commit changes only the functional gate SRAM model used by Xcelium.",
+    "Slow-corner WNS is exactly 0 ps at 0.81 V, 125 C under accelerator_internal timing scope; this is a marginal timing pass.",
+    "Joules and standard-cell area exclude uncharacterized SRAM macros; reported memory power is zero because these SRAMs are black boxes.",
+    "Estimated layer energy is reported power multiplied by layer cycles and the 2 ns target period; it is not an integrated energy measurement."
+  ]
+}

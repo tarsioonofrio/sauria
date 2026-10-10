@@ -23,7 +23,7 @@ The INT16 array sweep now follows the FastConv `cmd_sim_normal` tensor
 generation contract: seeded `N(0, 1)` IFMAP and weights, scaled by `2^8` and
 truncated toward zero to represent eight fractional bits. These are signed
 16-bit operands with wraparound, not saturated signed INT8 values. Bias is
-disabled and initial partial sums are zero. All five array profiles use the
+disabled and initial partial sums are zero. All active array profiles use the
 same seed and layer tensors; only their packed memory layout differs. The
 vector manifests record the seed, quantization contract, and SHA-256 hashes.
 Expected outputs use an independent direct NumPy convolution and signed 16-bit
@@ -241,6 +241,17 @@ timing pass under `accelerator_internal`; SRAM macro area and power are
 excluded. The retiled 2x2, 4x4, and 5x5 results from commit `316013f` are in
 [`int16_ppa_energy_retile2x2_4x4_5x5_20261009.csv`](reports/int16_ppa_energy_retile2x2_4x4_5x5_20261009.csv)
 and [`int16_synthesis_internal_500mhz_retile2x2_4x4_5x5_20261009.csv`](reports/int16_synthesis_internal_500mhz_retile2x2_4x4_5x5_20261009.csv).
+The 4x5 array completed RTL, Genus, SDF gate simulation, and Joules with
+`X_used=4`, `Y_used=5`, all 20 PEs active, and output checksum `015f2e08`.
+Its PPA/energy and synthesis reports are
+[`int16_ppa_energy_retile4x5_20261009.csv`](reports/int16_ppa_energy_retile4x5_20261009.csv)
+and
+[`int16_synthesis_internal_500mhz_retile4x5_20261009.csv`](reports/int16_synthesis_internal_500mhz_retile4x5_20261009.csv).
+The synthesis used profile commit `a1431f6`; its gate SRAM model was corrected
+and validated in commit `636c69a`. Area was 50,212.134 µm² for 45,429 cells,
+and slow-corner WNS was 0 ps, a marginal pass. The run took 28,066 cycles
+(56.132 µs at 2 ns) and reported 15.94390 mW; estimated layer energy is
+0.894963 µJ. SRAM macro area and power are excluded.
 Per-run simulation, synthesis, and power artifacts remain under each profile's
 `sim/run_artifacts/`, `logical/results/`, `power/results/`, and
 `run_metadata/` directories on Paxos, as described above. See

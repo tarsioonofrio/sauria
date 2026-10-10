@@ -10,6 +10,14 @@ remain historical measurements, not results for the new `int16_4x5` array.
 
 ## Current table
 
+- `int16_ppa_energy_retile4x5_20261009.csv` and
+  `int16_synthesis_internal_500mhz_retile4x5_20261009.csv` record the 2026-10-09
+  4x5 campaign. RTL and SDF gate-level simulation passed all 10,800 outputs
+  with checksum `015f2e08`; Joules completed. The profile/synthesis source was
+  commit `a1431f6`; the rectangular gate SRAM models used for SDF validation
+  were corrected in commit `636c69a`. Slow-corner WNS is 0 ps, so timing is a
+  marginal pass. The matching JSON files are the source records.
+
 - `int16_ppa_energy_retile6x6_20261009.csv` and
   `int16_synthesis_internal_500mhz_retile6x6_20261009.csv` record the fresh
   2026-10-09 retiled 6x6 run from source commit `0f3f66c`. This snapshot covers
@@ -50,11 +58,14 @@ remain historical measurements, not results for the new `int16_4x5` array.
 | Retiled array | X/Y used | Active PEs | Standard-cell area (µm²) | Cycles | Slow WNS (ps) | Power (mW) | Est. energy (µJ) |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | 2x2 | 2/2 | 4/4 | 26,145.882 | 100,142 | +64 | 6.20488 | 1.242738 |
+| 4x5 | 4/5 | 20/20 | 50,212.134 | 28,066 | 0 | 15.94390 | 0.894963 |
 | 4x4 | 4/3 | 12/16 | 40,383.504 | 42,646 | +64 | 11.61220 | 0.990428 |
 | 5x5 | 4/5 | 20/25 | 56,540.736 | 35,365 | +2 | 14.86960 | 1.051727 |
 
-All retiled runs use `accelerator_internal` scope. The 5x5 and 6x6 timing
-passes are marginal at the slow corner (+2 ps and +1 ps). Energy is estimated
+The 2x2/4x4/5x5 and 6x6 rows are prior retiled snapshots; the new 4x5 result
+uses its own synthesis and PPA source files above. All retiled runs use
+`accelerator_internal` scope. The 4x5, 5x5, and 6x6 timing passes are marginal
+at the slow corner (0 ps, +2 ps, and +1 ps). Energy is estimated
 from Joules power and layer cycles at the 2 ns target period; it is not an
 integrated energy measurement. SRAM macro area and power are excluded. The
 6x6 report is from source commit `0f3f66c`; the 2x2/4x4/5x5 report is from
@@ -93,13 +104,14 @@ make report REPORT=experiments/asic_notebook_power/reports/custom-name.csv
 make report SYNTH_REPORT=experiments/asic_notebook_power/reports/custom-synthesis.csv
 ```
 
-The current PPA/energy CSV includes Cin/Cout, standard-cell area, active PE
+Each run-specific PPA/energy CSV includes Cin/Cout, standard-cell area, active PE
 count, layer cycles, WNS, reported power, and estimated per-layer energy. The
-estimate uses the 2 ns target period and measured layer cycles. All five
-Cin=3/Cout=12 runs passed RTL and gate-level checks with checksum `015f2e08`.
-Their IFMAP and weight tensor hashes match across all five arrays. All five
-have nonnegative slow-corner WNS under the diagnostic `accelerator_internal`
-scope; the 3x3, 5x5, and 6x6 margins are only 1–2 ps. This scope excludes
+estimate uses the 2 ns target period and measured layer cycles. The five
+Cin=3/Cout=12 baseline array runs passed RTL and gate-level checks with
+checksum `015f2e08`; their IFMAP and weight tensor hashes match across all five
+arrays. Those baseline runs have nonnegative slow-corner WNS under the
+diagnostic `accelerator_internal` scope; the 3x3, 5x5, and 6x6 margins are only
+1–2 ps. The new 4x5 run also passes this scope at 0 ps. This scope excludes
 AXI-Lite AW/W valid-to-ready paths and does not establish full-wrapper timing
 closure. The campaign used `DRAM_BANDWIDTH=128` (128 bits/cycle); it is not the
 planned 100/120-bit shared-budget comparison. Both current reports exclude
