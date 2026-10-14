@@ -1,0 +1,120 @@
+{
+  "array": {
+    "x": 4,
+    "y": 5
+  },
+  "case": "conv-x4-y5",
+  "controller": {
+    "config_base": 1073741824,
+    "dram_offsets_bytes": [
+      0,
+      6144,
+      6792,
+      28392
+    ],
+    "layer_start_address": 1073741824,
+    "loop_order": 0,
+    "register_count": 41,
+    "start_policy": "one layer start; controller schedules all tiles"
+  },
+  "counts": {
+    "config_words": 19,
+    "controller_config_words": 42,
+    "dram_bytes": 28392,
+    "ifmap_words": 615,
+    "output_bytes": 21600,
+    "output_values": 10800,
+    "output_words": 2160,
+    "weight_words": 81
+  },
+  "golden_model": "direct convolution of seeded Gaussian Q8 operands, bias disabled, signed 16-bit accumulator wrap",
+  "layer": {
+    "dilation": 1,
+    "input_shape": [
+      3,
+      32,
+      32
+    ],
+    "kernel": [
+      3,
+      3
+    ],
+    "output_shape": [
+      12,
+      30,
+      30
+    ],
+    "padding": 0,
+    "stride": 1,
+    "weight_shape": [
+      12,
+      3,
+      3,
+      3
+    ]
+  },
+  "memory_capacity_bits_per_bank": [
+    163840,
+    131072,
+    81920
+  ],
+  "memory_depths": [
+    2048,
+    2048,
+    1024
+  ],
+  "numbers": {
+    "accumulator_bits": 16,
+    "floating": false,
+    "operand_bits": [
+      16,
+      16
+    ],
+    "overflow": "signed wrap modulo 2^OC_W",
+    "saturation": false
+  },
+  "profile": "int16_4x5",
+  "quantization": {
+    "bias": "disabled; zero initial partial sums",
+    "conversion": "truncate toward zero after multiplying by 2^8",
+    "distribution": "normal",
+    "fractional_bits": 8,
+    "mean": 0,
+    "operand_width_bits": [
+      16,
+      16
+    ],
+    "saturation": false,
+    "signed_overflow": "wrap modulo 2^operand_width",
+    "standard_deviation": 1
+  },
+  "seed": 20261004,
+  "sha256": {
+    "config.mem": "a997b1d34b886f11dbf3796727c9bbe2125476d0049cf88e66911736ab812ba5",
+    "controller_config.mem": "8dbbb450088c426f23f5f10cbddb009737757fb606f691b6c3dbfc7e0526d6a1",
+    "dram.mem": "be0751bd7228cd2c62b999583825b3e9b9f843629f64ec7f5f9562c513486550",
+    "dram_gold.mem": "3d7a316252641c76a7fd33804ee2f22ffeb6e6790aec6f08db6350fc3495229d",
+    "golden.mem": "c85c85c726dc22abd3cc9fe71a6bac4316762a1a9db0800fe6a7ae3c1d0624db",
+    "ifmap.mem": "a03b2bd19040382db3e143cd61e7f11e8942e527c48b595f42872f2e5de7570c",
+    "psum_init.mem": "c7a9e63b132f64650855ffef48914a42ebd99a2e86d135a289fef06419de6a5d",
+    "weights.mem": "c52d24cb0f97d81becd4d55dcfda62d385823bb1bd7e4024717f6052e88013ff"
+  },
+  "tensor_sha256": {
+    "golden": "dc057dd4697c7ea39a99146dfb3e27c468682dae0deae2cc9e1d72e2b415b06e",
+    "ifmap": "ed8cc8e1d630bcda662d5943dd8db49b804f9f94b2758e02fd63dd06cf6cfe7d",
+    "initial_partial_sums": "c15a958bf2806ac93920a2a2b014d7fbc81e9dfd5f20eef74175eee08928e2d1",
+    "weights": "4bac62b127b2365860464998e1c9c00891184909470bed5aca73f63b1a55dccf"
+  },
+  "tiling": {
+    "C_tile_shape": [
+      12,
+      10,
+      30
+    ],
+    "X_used": 4,
+    "Y_used": 5,
+    "tile_cin": 3
+  },
+  "vector_source": "generated",
+  "version": "int16_4x5"
+}
