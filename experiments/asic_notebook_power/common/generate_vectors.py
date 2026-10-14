@@ -13,10 +13,6 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "Python"))
 
-from src import data_helper, execution_model, sauria_lib  # noqa: E402
-from src.config_helper import get_controller_regs, get_sauria_regs  # noqa: E402
-from src.hw_versions import get_params  # noqa: E402
-
 
 PROFILES = {
     "fp16_8x16": {
@@ -74,6 +70,13 @@ INT16_ARRAY_TILING = {
     8: (3, 6, 3),
 }
 
+ISCAS2027_DATASET = {
+    "seed": 20261004,
+    "ifmap_sha256": "ed8cc8e1d630bcda662d5943dd8db49b804f9f94b2758e02fd63dd06cf6cfe7d",
+    "weights_sha256": "4bac62b127b2365860464998e1c9c00891184909470bed5aca73f63b1a55dccf",
+    "output_fnv1a32": "015f2e08",
+}
+
 for array_size in (2, 3, 6, 7, 8):
     x_used, y_used, k_tile = INT16_ARRAY_TILING[array_size]
     case_name = f"conv-x{x_used}-y{y_used}"
@@ -94,7 +97,8 @@ for array_size in (2, 3, 6, 7, 8):
                     "X_used": x_used,
                     "Y_used": y_used,
                 },
-                "seed": 0,
+                # Preserve the exact workload used by the ISCAS 2027 runs.
+                "seed": 20261004,
             },
         },
     }
@@ -113,7 +117,8 @@ PROFILES["int16_4x5"] = {
                 "X_used": 4,
                 "Y_used": 5,
             },
-            "seed": 0,
+            # Preserve the exact workload used by the ISCAS 2027 runs.
+            "seed": 20261004,
         },
     },
 }
@@ -141,6 +146,14 @@ def signed_wrap(values: np.ndarray, bits: int) -> np.ndarray:
     return ((values.astype(np.int64) + sign) % modulus - sign).astype(np.int64)
 
 
+def fnv1a32(values: np.ndarray) -> str:
+    """Match the testbench checksum over little-endian signed 16-bit outputs."""
+    checksum = 0x811C9DC5
+    for byte in np.asarray(values, dtype="<i2").tobytes():
+        checksum = ((checksum ^ byte) * 0x01000193) & 0xFFFFFFFF
+    return f"{checksum:08x}"
+
+
 def fp16_fma_convolution(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
     """Reference the SAURIA FP16 MAC: fused multiply-add, rounded per MAC."""
     output_h = a.shape[1] - b.shape[2] + 1
@@ -158,9 +171,9 @@ def fp16_fma_convolution(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndar
 
 
 def generate_normal_q8_int16_dataset(outdir: Path, seed: int) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-    """Generate the shared N(0, 1), Q8 workload as signed 16-bit data."""
-    if seed != 0:
-        raise ValueError(f"The shared workload uses seed 0, got {seed}")
+    """Regenerate the exact ISCAS 2027 N(0, 1), Q8 signed-16 workload."""
+    if seed != 20261004:
+        raise ValueError(f"The ISCAS 2027 workload uses seed 20261004, got {seed}")
     dataset_dir = outdir / "normal_dataset"
     dataset_dir.mkdir(parents=True, exist_ok=True)
 
@@ -184,6 +197,18 @@ def generate_normal_q8_int16_dataset(outdir: Path, seed: int) -> tuple[np.ndarra
             )
     output = signed_wrap(output, 16)
 
+    actual_hashes = {
+        "ifmap_sha256": tensor_sha256(a_q8),
+        "weights_sha256": tensor_sha256(b_q8),
+        "output_fnv1a32": fnv1a32(output),
+    }
+    expected_hashes = {key: value for key, value in ISCAS2027_DATASET.items() if key != "seed"}
+    if seed == ISCAS2027_DATASET["seed"] and actual_hashes != expected_hashes:
+        raise RuntimeError(
+            "Generated tensors differ from the ISCAS 2027 paper workload: "
+            f"expected={expected_hashes}, actual={actual_hashes}"
+        )
+
     arrays = {
         "ifmap_float": a_float[0],
         "weights_float": b_float,
@@ -197,8 +222,8 @@ def generate_normal_q8_int16_dataset(outdir: Path, seed: int) -> tuple[np.ndarra
         np.savetxt(dataset_dir / f"{name}.txt", values.reshape(-1), fmt=fmt)
 
     generation = {
-        "generator": "internal NumPy implementation matching FastConv normal input generation",
-        "rng": "numpy.random legacy MT19937 via np.random.seed",
+        "generator": "internal NumPy implementation reproducing the ISCAS 2027 paper workload",
+        "rng": "numpy.random.RandomState (legacy MT19937)",
         "seed": seed,
         "distribution": {"name": "normal", "mean": 0, "standard_deviation": 1},
         "quantization": {
@@ -224,6 +249,7 @@ def generate_normal_q8_int16_dataset(outdir: Path, seed: int) -> tuple[np.ndarra
             "multiplications": 9 * 30 * 30 * 3 * 12,
             "floating_golden": "unquantized convolution of the N(0, 1) tensors",
             "quantized_golden": "Q8 integer convolution wrapped to signed 16 bits",
+            "paper_output_fnv1a32": actual_hashes["output_fnv1a32"],
         },
     }
     (dataset_dir / "generation.json").write_text(json.dumps(generation, indent=2, sort_keys=True) + "\n")
@@ -342,6 +368,14 @@ def tensor_sha256(values: np.ndarray) -> str:
     return hashlib.sha256(np.ascontiguousarray(values).tobytes()).hexdigest()
 
 
+def load_sauria_dependencies() -> None:
+    """Load the full SAURIA Python stack only for packed simulation vectors."""
+    global data_helper, execution_model, sauria_lib, get_controller_regs, get_sauria_regs, get_params
+    from src import data_helper, execution_model, sauria_lib  # noqa: E402, F401
+    from src.config_helper import get_controller_regs, get_sauria_regs  # noqa: E402, F401
+    from src.hw_versions import get_params  # noqa: E402, F401
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=PROFILES, required=True)
@@ -354,12 +388,24 @@ def main() -> int:
     )
     parser.add_argument("--count-only", action="store_true", help="generate random operands without computing or checking a golden convolution")
     parser.add_argument("--channels", type=int, choices=(32, 64, 128, 256, 512), help="Cin=Cout for the 6x6 SRAM access count workload")
+    parser.add_argument(
+        "--paper-dataset-only",
+        action="store_true",
+        help="generate and verify the ISCAS 2027 tensors without importing Torch/SciPy or emitting simulator memory files",
+    )
     args = parser.parse_args()
 
     profile = PROFILES[args.profile]
     if args.case not in profile["cases"]:
         parser.error(f"unknown case {args.case!r} for {args.profile}")
     case_spec = dict(profile["cases"][args.case])
+    if args.paper_dataset_only:
+        if not args.profile.startswith("int16_") or args.count_only or args.channels is not None or args.input_npz:
+            parser.error("--paper-dataset-only requires a standard int16 profile/case and cannot be combined with other input modes")
+        _, _, _, summary = generate_normal_q8_int16_dataset(args.out.resolve(), case_spec["seed"])
+        print(json.dumps(summary["generation"], indent=2, sort_keys=True))
+        return 0
+    load_sauria_dependencies()
     if args.channels is not None or args.count_only:
         if args.profile != "int16_6x6" or not args.count_only or args.channels is None:
             parser.error("--channels is supported only with --count-only for int16_6x6")
@@ -388,7 +434,9 @@ def main() -> int:
     conv = sauria_lib.get_conv_dict(shapes, tiling, hopts, preloads=True, d=1, s=1, p=0)
     vector_source = "generated"
     dataset_summary = None
-    seed = case_spec["seed"]
+    # Paper workloads use their recorded seed. Count-only stress runs are a
+    # separate workload and retain their original deterministic seed.
+    seed = 0 if args.count_only else case_spec["seed"]
     if args.input_npz:
         with np.load(args.input_npz, allow_pickle=False) as tensors:
             a = tensors["A"]

@@ -23,10 +23,11 @@ The integer tensors are generated locally by `generate_vectors.py`, using the
 same simple input-generation rules as `fast_convolution/simulation.py`:
 NumPy's seeded legacy RNG draws IFMAP first and spatial weights second from
 `N(0, 1)`, then each operand is multiplied by `2^8` and converted to integer
-(truncation toward zero). The seed is 0. Q8 operands and the quantized direct
-convolution golden use signed 16-bit wrap; bias is disabled. The script writes
-float and quantized tensors, float and
-quantized direct-convolution goldens, tensor statistics, and SHA-256 hashes to
+(truncation toward zero). For the ISCAS 2027 INT16 workload, the seed is
+`20261004`, matching the published campaign tensors. Q8 operands and the
+quantized direct-convolution golden use signed 16-bit wrap; bias is disabled.
+The script writes float and quantized tensors, float and quantized
+direct-convolution goldens, tensor statistics, and SHA-256 hashes to
 `normal_dataset/` under each vector run. All array variants use those same
 tensors; only their packed memory layout differs. SAURIA then wraps the
 quantized golden to the accumulator width selected by the profile (16 bits in
