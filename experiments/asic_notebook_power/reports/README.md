@@ -1,5 +1,10 @@
 # SAURIA ASIC campaign reports
 
+For the exact SAURIA profiles and report snapshots used in the ISCAS 2027 paper,
+start with [`iscas2027/README.md`](iscas2027/README.md). It maps each paper row
+to its profile, JSON source record, source commit, workload, and reproduction
+steps.
+
 This directory contains durable, consolidated reports for the INT16 array
 campaign. Reports with different source revisions or measurement scopes stay
 separate. Detailed artifacts for individual runs (logs, netlists, waveforms,
