@@ -12,6 +12,7 @@ REPORT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261009.csv
 SYNTH_REPORT ?= experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261009.csv
 PPA_INPUT ?= experiments/asic_notebook_power/reports/int16_ppa_energy_20261009.json
 SYNTH_INPUT ?= experiments/asic_notebook_power/reports/int16_synthesis_internal_500mhz_20261009.json
+PAXOS_REPO_ROOT ?= /sim/tarsio.onofrio/sauria
 
 PROFILE_ROOT = experiments/asic_notebook_power/$(PROFILE)
 LOGICAL_RESULTS_ROOT = $(abspath $(PROFILE_ROOT)/logical/results/$(RUN_ID))
@@ -60,7 +61,7 @@ require-profile:
 
 require-paxos:
 	@test "$$(hostname -f)" = paxos.inf.pucrs.br || { echo 'EDA targets must run on paxos.inf.pucrs.br.' >&2; exit 2; }
-	@test "$$(git rev-parse --show-toplevel)" = /sim/tarsio/sauria || { echo 'Use the persistent checkout /sim/tarsio/sauria on Paxos.' >&2; exit 2; }
+	@test "$$(git rev-parse --show-toplevel)" = "$(PAXOS_REPO_ROOT)" || { echo 'Use the persistent checkout $(PAXOS_REPO_ROOT) on Paxos.' >&2; exit 2; }
 
 require-tmux:
 	@test -n "$${TMUX:-}" || { echo 'Start or attach to a tmux session on Paxos before running EDA targets.' >&2; exit 2; }

@@ -17,7 +17,7 @@ TB="$GIT_ROOT/$TB_ENTRY"
 RAM_RTL="$GIT_ROOT/RTL/src/sauria_core/sram/ram_inferred.sv"
 GATE_NETLIST="$RESULTS/gate_level/sauria_asic_top_logic_mapped.v"
 CELL_MODELS=/pdk/tsmc/PDK28/PDK_TSMC28_bv/tcbn28hpcplusbwp30p140_190a/TSMCHOME/digital/Front_End/verilog/tcbn28hpcplusbwp30p140_110a/tcbn28hpcplusbwp30p140.v
-PYTHON=${SAURIA_PYTHON:-/sim/tarsio/sauria/Python/sauria-env/bin/python}
+PYTHON=${SAURIA_PYTHON:-"$GIT_ROOT/Python/sauria-env/bin/python"}
 SIM_STAGE=${SIM_STAGE:-all}
 [[ "$SIM_STAGE" == rtl || "$SIM_STAGE" == gate || "$SIM_STAGE" == all ]] || { echo "SIM_STAGE must be rtl, gate, or all" >&2; exit 2; }
 case "$SIMULATOR" in
