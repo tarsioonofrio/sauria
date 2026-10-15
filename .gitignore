@@ -18,3 +18,13 @@ work.lib++
 verdi_config_file
 *.txt
 *.npy
+
+# EDA outputs
+/genus.cmd*
+/genus.log*
+*.db
+*.shm/
+*.sdf.X
+.rs_*.tstamp
+fv/
+physical_synthesis/
