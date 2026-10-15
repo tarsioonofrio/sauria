@@ -114,8 +114,8 @@ make flow PROFILE=int16_4x5 RUN_ID=<id-novo-4x5>
 make flow PROFILE=int16_6x6 RUN_ID=<id-novo-6x6>
 ```
 
-Execute cada campanha sequencialmente em `tmux` na Paxos, no checkout
-`/sim/tarsio.onofrio/fast-conv/sauria`, com as versões de ferramentas indicadas nos manifests.
+Execute cada campanha sequencialmente em `tmux` na Paxos, na raiz deste checkout
+(o Makefile deriva o caminho da própria localização), com as versões de ferramentas indicadas nos manifests.
 O Makefile verifica host, raiz Git e `tmux`; use um `RUN_ID` novo para cada
 execução. Os resultados ficam nos diretórios `run_metadata/<RUN_ID>/`,
 `logical/results/<RUN_ID>/`, `sim/run_artifacts/<RUN_ID>/` e
