@@ -1,89 +1,184 @@
-# SAURIA - Systolic Array tensor Unit for aRtificial Intelligence Acceleration
+# SAURIA as the direct-convolution baseline of FastConv (ISCAS 2027)
 
-SAURIA is a Convolutional Neural Network (CNN) accelerator based on an output stationary (OS) systolic array with on-chip, on-the-fly convolution lowering, written entirely in SystemVerilog. 
+This fork of [SAURIA](https://github.com/bsc-loca/sauria) (BSC) provides the direct-convolution baseline of
 
-The accelerator can natively compute convolution and general matrix-matrix multiplication (GEMM) operations of any shape and size. The architecture is parametric and can be configured to use different systolic array shapes and sizes, local memory shapes, and arithmetic formats, but it has been tested extensively using FP16 arithmetic and an array of shape 8x16 (128 PEs).
+> "Trading Multiplications for Simpler Transforms: Area and Energy Efficiency of Polynomial Winograd
+> Convolution," submitted to the *IEEE International Symposium on Circuits and Systems (ISCAS)*, 2027.
 
-Maintainer: Jordi Fornt Mas (jordi.fornt@bsc.es)
+SAURIA is an output-stationary systolic-array CNN accelerator with on-the-fly im2col (Fornt et al.,
+IEEE TVLSI 2023). The paper compares it with the FastConv fast-convolution cores
+([FastConv_SystemVerilog](https://github.com/tarsioonofrio/FastConv_SystemVerilog)) on the same layer
+(3×32×32 input, 12 output channels, 3×3 kernel, stride 1, no padding), in the same technology and flow
+(TSMC 28 nm, 500 MHz). This fork adds signed 16-bit profiles with 9, 20 and 36 processing elements, an ASIC
+wrapper with the native controller and local SRAMs, a testbench that services the controller's DMA requests,
+and the synthesis, gate-level simulation and power flow. The three arrays reach 947.5, 895.0 and 858.9 nJ per
+layer for 35 794, 50 212 and 64 613 µm² of standard cells.
 
-<img src="diagram.svg" width="750">
+The README of the original project, with the fork's notes on choosing the active lanes, is in
+[`README.upstream.md`](README.upstream.md); how the fork relates to and syncs with upstream is in
+[`UPSTREAM.md`](UPSTREAM.md) (in Portuguese).
 
-## Documentation
+## Layout
 
-Check out the project's Wiki (https://github.com/bsc-loca/sauria/wiki) for some in-depth explanations on how the accelerator is built.
+| Folder | Content |
+|---|---|
+| `experiments/asic_notebook_power/` | the paper experiments: one folder per profile (`int16_3x3/`, `int16_4x5/`, `int16_6x6/`, plus `int16_2x2/`), `common/` (ASIC top, testbench, SRAM models, vector generator), `reports/` (the paper's numbers as JSON/CSV and the SRAM access counts), `run_campaign.sh` |
+| `RTL/` | SAURIA RTL; `RTL/hw_versions/int16_*.svh` are square INT16 profiles added here (the ASIC profiles set the array shape and widths in their own `list-define.txt`) |
+| `Python/` | upstream Python library and notebooks, with the fork's INT16 examples |
+| `test/verilator/` | upstream Verilator testbench, adapted to the new profiles |
+| `scripts/` | report generators (`generate_int16_ppa_csv.py`, `generate_int16_synthesis_csv.py`) |
+| `archive/` | retired profiles (4×4, 5×5) and their historical reports |
+| `tools/`, `pulp_platform/` | upstream Verilator installer and submodules |
 
-This research fork's relationship with the upstream repository and its
-synchronization workflow are documented in [UPSTREAM.md](UPSTREAM.md).
+## Configurations
+
+All three are the same accelerator with signed 16-bit operands and partial sums, local SRAM depths of
+2048/2048/1024 words (A/B/C) and the timing scope `accelerator_internal`; only the array shape changes.
+
+| Paper label | Profile | Array (X×Y) | Case | Report (`experiments/asic_notebook_power/reports/`) | Rerun snapshot |
+|---|---|---|---|---|---|
+| SAURIA, 9 MACs | `int16_3x3` | 3×3 | `conv-x3-y3` | `int16_ppa_energy_20261009.json` | `6bdb5b0` |
+| SAURIA, 20 MACs | `int16_4x5` | 4×5 | `conv-x4-y5` | `int16_ppa_energy_retile4x5_20261009.json` | `636c69a` |
+| SAURIA, 36 MACs | `int16_6x6` | 6×6 | `conv-x6-y6` | `int16_ppa_energy_retile6x6_20261009.json` | `0f3f66c` |
+
+The workload is the same for all: inputs and weights drawn from N(0, 1) with seed `20261004` (IFMAP first,
+then weights), scaled by 2⁸ and truncated toward zero, with signed 16-bit wrap-around; bias disabled. The
+direct-convolution golden has the FNV-1a checksum `015f2e08`.
+
+## Quick start
+
+Without the EDA tools (about a second, Python ≥ 3.8 with NumPy): regenerate the paper's tensors and golden and
+check them against the published hashes and checksum.
+
+```bash
+python3 experiments/asic_notebook_power/common/generate_vectors.py \
+  --profile int16_3x3 --case conv-x3-y3 --out /tmp/sauria-iscas2027 --paper-dataset-only
+```
+
+It exits with status 0 and prints `"output_fnv1a32": "015f2e08"` with the SHA-256 of every tensor. Rebuild the
+paper's CSVs from the committed JSON reports:
+
+```bash
+make report PYTHON=<python ≥ 3.8>      # the two CSVs come out byte-identical
+```
+
+The whole flow of one profile, with the Cadence tools and the library (on the Paxos server, inside `tmux`,
+with a new `RUN_ID` each time):
+
+```bash
+make flow PROFILE=int16_3x3 RUN_ID=<new-id>     # RTL sim, synthesis, gate-level sim, power
+make rtl-sim|synth|gate-sim|power PROFILE=int16_6x6 [CASE=conv-x6-y6] RUN_ID=<id>
+make help
+```
+
+A rerun reproduces the published PPA only from the snapshot of each row (table above); check out that commit
+first and restore the branch afterwards.
 
 ## Requirements
 
-- [Python](https://www.python.org/) (to generate the test stimuli)
-- [Gtkwave](http://gtkwave.sourceforge.net/) (for visualization of verilator simulations)
+| Item | Version used | Notes |
+|---|---|---|
+| Python | ≥ 3.8 | NumPy for the dataset check; `Python/requirements_pip.txt` for the full vector generation |
+| Verilator | 5.052 | RTL simulation and SRAM access counts; needs g++ 15 (`gcc-toolset-15`). Upstream recommends 4.224 for its own testbench |
+| Cadence Genus | 21.1 | synthesis and power (Joules engine) |
+| Cadence Xcelium | 23.03 | gate-level simulation with SDF |
+| TSMC 28 nm HPC+ standard cells | | under NDA, not included |
+| GNU make, bash, tmux | | the EDA targets check the host (`paxos.inf.pucrs.br`), the checkout path and `tmux` |
 
-## Installation
+## Where each number of the paper comes from
 
-After cloning the repository and selecting the branch, run the following command to update all the submodules:
+All values are in `experiments/asic_notebook_power/reports/`; the JSON files keep run IDs, checksums, tool
+versions and commits. Energy is power × cycles × 2 ns.
 
-```bash
-git submodule update --init --recursive
-```
+| Paper | Value | File |
+|---|---|---|
+| ASIC table, SAURIA 9 MACs | 44 044 cycles, 35 793.702 µm², 10.7567 mW, 947.5 nJ | `int16_ppa_energy_20261009.json` (and `.csv`) |
+| ASIC table, SAURIA 20 MACs | 28 066 cycles, 50 212.134 µm², 15.9439 mW, 895.0 nJ | `int16_ppa_energy_retile4x5_20261009.json` |
+| ASIC table, SAURIA 36 MACs | 21 658 cycles, 64 613.178 µm², 19.8278 mW, 858.9 nJ | `int16_ppa_energy_retile6x6_20261009.json` |
+| Synthesis details | area, cells, slack per profile | `int16_synthesis_internal_500mhz_20261009.json` (and `.csv`) |
+| Memory-energy estimate | accesses per SRAM bank A/B/C | `sram_access_counts_ce13ea3_20261010.csv` (Verilator 5.052, `NOTEBOOK_LAYER_PASS`) |
 
-SAURIA can be emulated using Verilator v4.224. We have observed issues with older and newer versions, so we recommend using a local installation as described below. A testbench for simulation with commercial RTL simulators (e.g. Synopsys VCS or Questa) is also provided.
+[`reports/iscas2027/README.md`](experiments/asic_notebook_power/reports/iscas2027/README.md) (in Portuguese)
+has the full mapping, the rerun procedure and how the paper's comparison tables are built together with the
+FastConv and WinoCNN reports.
 
-Before running any experiments, make sure to execute the setup script. The first time, it will automatically install the Python virtual environment with all dependencies needed to use the repo.
+## Changes to the SAURIA RTL
 
-```bash
-source setup.sh
-```
+The fork keeps the upstream structure and interfaces and puts the flow in `experiments/`. Changes in `RTL/`,
+`Python/` and `test/` since the upstream base (`2bb469e`, 2025-11-26):
 
-To install Verilator v4.224 locally, run:
+- **Profiles:** `RTL/hw_versions/int16_{2x2,3x3,4x4,5x5,6x6,7x7,8x8}.svh` (16-bit operands, depths above),
+  known to `Python/src/hw_versions.py`; the ASIC profiles (including the non-square 4×5) pass `X`, `Y`, widths
+  and depths as defines.
+- **Local SRAMs:** non-power-of-two banks, partial and unaligned host transfers and width packing without data
+  loss (`sram/ram_intf_wrapper.sv`, `sram/sram_top.sv`).
+- **Feeders and partial-sum manager:** IFMAP elements kept across stalls, read pointer bounded by accepted
+  elements, pipeline drain after the weights finish (`data_feeder/*`, `psm/psm_idxcnt.sv`,
+  `control/feeders_fsm.sv`).
+- **Testbench:** Verilator scripts and tester adapted to the INT16 profiles (`test/verilator/`).
 
-```bash
-cd tools/
-source install_verilator.sh
-```
+Each fix has its own commit (`git log 2bb469e..HEAD -- RTL`).
 
-## Running Simulations
+## Flow, step by step
 
-We provide an example Jupyter Notebook explaining step by step how to perform simulations with the repo, which you can find [here](Python/notebooks/example_basic.ipynb) (`Python/notebooks/example_basic.ipynb`).
+`run_campaign.sh <profile>` runs the four stages for one case and stores each run under its `RUN_ID`
+(`run_metadata/`, `logical/results/`, `sim/run_artifacts/`, `power/results/` inside the profile), so earlier
+results are never overwritten.
 
-### Choosing `X_used` and `Y_used`
+### 01: vectors (`common/generate_vectors.py`)
 
-`X` and `Y` are the physical dimensions of the systolic array in the selected hardware version. `X_used` and `Y_used` select how many lanes in those dimensions are active for a convolution tile. In SAURIA's mapping, the X dimension covers output-channel lanes and the Y dimension covers adjacent output positions across the output width. The product `X_used * Y_used` is the number of active processing elements (PEs) in that tile; it is not the total number of MAC operations in the convolution layer.
+Writes the float and quantized tensors, both direct-convolution goldens, statistics and hashes to
+`normal_dataset/`, and the packed `.mem` images of the external memory for the selected array. All arrays read
+the same tensors; only the memory layout differs.
 
-The selected values must not exceed the physical array dimensions and must fit the tile shape: the output-channel tile (`C_tile_shape[0]`) must be divisible by `X_used`, and the output-width tile (`C_tile_shape[2]`) must be divisible by `Y_used`. The tile dimensions must also divide the corresponding full output dimensions. These checks are performed by `Python/src/sauria_lib.py`.
+### 02: RTL simulation (`<profile>/sim/run.sh`, `SIM_STAGE=rtl`)
 
-For `Python/notebooks/example_int8_32x32_conv.py`, the hardware array is 32×32, the output has 3 channels and width 30, and the tile is `[3, 10, 30]`. With that workload and tile, the tiling constraints allow `X_used` values 1 or 3, and `Y_used` values 1, 2, 3, 5, 6, 10, 15, or 30. This gives 16 compatible pairs; only `X_used=3, Y_used=3` has been functionally simulated so far. For example, `X_used=3, Y_used=5` satisfies the current tile constraints, but still needs its own simulation before its behavior is considered verified.
+The ASIC top (`common/sauria_asic_top.sv`: native `df_controller_top`, core, feeders, systolic array,
+partial-sum manager, local SRAMs) runs under `common/tb.sv`. The testbench serves the controller's AXI-Lite DMA
+commands with byte copies between one external memory image and the local SRAMs, starts one layer, checks that
+the output region differs from the golden before the start and equals it after `layer_done`, and records the
+activity window from the start to `layer_done`.
 
-## ISCAS 2027 paper experiments
+### 03: synthesis (`<profile>/logical/run.sh`)
 
-The SAURIA results used in the ISCAS 2027 paper come from the `int16_3x3`,
-`int16_4x5`, and `int16_6x6` ASIC profiles. The paper-to-profile mapping,
-source commits, workload hashes, report paths, and reproduction commands are in
-the [SAURIA paper experiment guide](experiments/asic_notebook_power/reports/iscas2027/README.md).
-That guide also explains how to regenerate the paper tables from the committed
-reports and how to rerun the complete ASIC flows on the Paxos.
+Genus 21.1 at 2 ns with the `accelerator_internal` timing scope (the combinational AXI-Lite handshake paths are
+left out; `SAURIA_TIMING_SCOPE=wrapper` includes them). The SRAMs are black boxes (`common/ram_inferred_blackbox.sv`).
 
-## Publication
+### 04: gate-level simulation (`<profile>/sim/run.sh`, `SIM_STAGE=gate`)
 
-If you use SAURIA in your work, you can cite the following paper:
+Xcelium 23.03 simulates the netlist with SDF and a behavioral SRAM model matched to the mapped netlist
+(`common/ram_inferred_gate_model.sv`), with the same golden check.
 
-```
-@ARTICLE{sauria2023,
-  author={Fornt, Jordi and Fontova-Musté, Pau and Caro, Martí and Abella, Jaume and Moll, Francesc and Altet, Josep and Studer, Christoph},
-  journal={IEEE Transactions on Very Large Scale Integration (VLSI) Systems}, 
-  title={An Energy-Efficient GeMM-Based Convolution Accelerator With On-the-Fly im2col}, 
-  year={2023},
-  volume={31},
-  number={11},
-  pages={1874-1878},
-  doi={10.1109/TVLSI.2023.3286122}}
-```
+### 05: power (`<profile>/power/run.sh`)
 
-## Contributing
+Genus/Joules at TT, 0.90 V, 25 °C with the activity of the gate-level window; `power_evaluation.txt` per case.
 
-If you would like to contribute to SAURIA, please contact jordi.fornt@bsc.es.
+### 06: reports (`make report`)
 
-## Licensing
+The JSON campaign reports are condensed into the CSVs used by the paper's table generator.
 
-SAURIA is released under the [Solderpad v2.1 license](https://solderpad.org/licenses/SHL-2.1/).
+## Notes
+
+- **Timing.** The slow-corner WNS is close to zero (down to 1 ps); read the notes in each JSON before calling
+  it a robust timing closure.
+- **The 4×5 point** uses the synthesis of `a1431f6` and the gate-level SRAM model fixed in `636c69a`; its
+  snapshot contains both.
+- **SRAM access counts** come from separate count-only runs with seed 0; they feed a memory-energy model and
+  are not power measurements.
+- EDA outputs are not versioned (`.gitignore`); text outputs needed to interpret a run are.
+
+## Limitations
+
+- Area and power exclude the local SRAMs (black boxes without a characterized macro); the uDMA and the AXI
+  fabric are outside the synthesis boundary.
+- Timing is measured inside the accelerator; it does not close the external AXI-Lite interface.
+- SAURIA uses 16-bit operands and accumulators; its precision and boundary differ from the FastConv cores, so
+  the paper uses it as a reference point, not as an equivalent measurement.
+- Power is at the typical corner with one workload.
+
+## License
+
+SAURIA is released under the [Solderpad Hardware License v2.1](https://solderpad.org/licenses/SHL-2.1/)
+(`LICENSE`); the fork does not change it. Submodules keep their own licenses. The
+standard-cell library is not distributed. Cite SAURIA as Fornt et al., "An Energy-Efficient GeMM-Based
+Convolution Accelerator With On-the-Fly im2col," IEEE TVLSI 31(11), 2023 (BibTeX in `README.upstream.md`).
