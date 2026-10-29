@@ -2,8 +2,9 @@
 
 This fork of [SAURIA](https://github.com/bsc-loca/sauria) (BSC) provides the direct-convolution baseline of
 
-> "Trading Multiplications for Simpler Transforms: Area and Energy Efficiency of Polynomial Winograd
-> Convolution," submitted to the *IEEE International Symposium on Circuits and Systems (ISCAS)*, 2027.
+> T. O. da Silva and F. G. Moraes, "Trading Multiplications for Simpler Transforms: Area and Energy
+> Efficiency of Polynomial Winograd Convolution," submitted to the *IEEE International Symposium on Circuits
+> and Systems (ISCAS)*, 2027.
 
 SAURIA is an output-stationary systolic-array CNN accelerator with on-the-fly im2col (Fornt et al.,
 IEEE TVLSI 2023). The paper compares it with the FastConv fast-convolution cores
