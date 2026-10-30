@@ -56,7 +56,8 @@ python3 experiments/asic_notebook_power/common/generate_vectors.py \
   --profile int16_3x3 --case conv-x3-y3 --out /tmp/sauria-iscas2027 --paper-dataset-only
 ```
 
-It exits with status 0 and prints `"output_fnv1a32": "015f2e08"` with the SHA-256 of every tensor. Rebuild the
+It exits with status 0 (it stops with an error if a hash or the checksum differs) and prints
+`"paper_output_fnv1a32": "015f2e08"` with the SHA-256 of every tensor. Rebuild the
 paper's CSVs from the committed JSON reports:
 
 ```bash
